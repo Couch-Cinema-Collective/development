@@ -9,7 +9,7 @@ import { OAuthButtons } from "@/components/OAuthButtons";
 
 function LoginForm() {
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") ?? "/";
+  const next = searchParams.get("next") ?? "/welcome";
   const [state, action, pending] = useActionState<AuthFormState, FormData>(
     login,
     null,

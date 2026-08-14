@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -13,70 +13,123 @@ import {
 } from "@dnd-kit/core";
 
 import { FilmPoster } from "./FilmPoster";
-import { buildPool } from "@/lib/slate";
-import { POINTS_PER_MEMBER, type Film, type Nomination, type Season } from "@/lib/types";
+import { saveStake } from "@/app/draft/actions";
+import type { PoolRow } from "@/lib/nominations";
+import { POINTS_PER_MEMBER, type Film, type SlateWeights } from "@/lib/types";
 
 interface DraftBoardProps {
-  season: Season;
+  seasonId: string;
+  filmCount: number;
+  weights: SlateWeights;
   /** Category catalog shown before the member searches for anything. */
   catalog: Film[];
-  /** Everyone else's stakes. The current member's are collected here. */
-  existingNominations: Nomination[];
-  currentMemberId: string;
+  /** Films the member has already staked (may sit outside the catalog). */
+  myFilms: Film[];
+  initialAllocations: Record<number, number>;
+  initialPool: PoolRow[];
   /** False when running on fixtures rather than live TMDB. */
   live: boolean;
+  categoryName: string;
 }
 
+type SaveState = "idle" | "saving" | "saved" | "error";
+
 export function DraftBoard({
-  season,
+  seasonId,
+  filmCount,
+  weights,
   catalog,
-  existingNominations,
-  currentMemberId,
+  myFilms,
+  initialAllocations,
+  initialPool,
   live,
+  categoryName,
 }: DraftBoardProps) {
-  const [allocations, setAllocations] = useState<Record<number, number>>({});
+  const [allocations, setAllocations] = useState(initialAllocations);
+  const [pool, setPool] = useState(initialPool);
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Film[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [draggingChip, setDraggingChip] = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
 
   /** Grows as live search introduces films outside the fixture catalog. */
   const [knownFilms, setKnownFilms] = useState<Map<number, Film>>(
-    () => new Map(catalog.map((f) => [f.id, f])),
+    () => new Map([...catalog, ...myFilms].map((f) => [f.id, f])),
   );
+
+  /** Last server-acknowledged points per film, for reverting failed saves. */
+  const savedRef = useRef<Record<number, number>>({ ...initialAllocations });
+  /** Per-film debounce so a burst of +/− sends one write with the final value. */
+  const timersRef = useRef(new Map<number, ReturnType<typeof setTimeout>>());
 
   const spent = Object.values(allocations).reduce((sum, n) => sum + n, 0);
   const unspent = POINTS_PER_MEMBER - spent;
 
+  const persist = useCallback(
+    (film: Film, points: number) => {
+      setSaveState("saving");
+      setSaveError(null);
+      void saveStake({ seasonId, film, points }).then((result) => {
+        if (result.error) {
+          // Roll the film back to its last acknowledged stake.
+          setAllocations((prev) => {
+            const next = { ...prev };
+            const saved = savedRef.current[film.id] ?? 0;
+            if (saved === 0) delete next[film.id];
+            else next[film.id] = saved;
+            return next;
+          });
+          setSaveState("error");
+          setSaveError(result.error);
+          return;
+        }
+        if (points === 0) delete savedRef.current[film.id];
+        else savedRef.current[film.id] = points;
+        if (result.pool) setPool(result.pool);
+        setSaveState("saved");
+      });
+    },
+    [seasonId],
+  );
+
   const allocate = useCallback(
     (filmId: number, delta: number) => {
-      if (submitted) return;
       setAllocations((prev) => {
         const current = prev[filmId] ?? 0;
         const next = current + delta;
         if (next < 0) return prev;
 
-        const total = Object.values(prev).reduce((s, n) => s + n, 0) - current + next;
+        const total =
+          Object.values(prev).reduce((s, n) => s + n, 0) - current + next;
         if (total > POINTS_PER_MEMBER) return prev;
 
         const updated = { ...prev, [filmId]: next };
         if (next === 0) delete updated[filmId];
+
+        // Debounced persist of this film's final value.
+        const film = knownFilms.get(filmId);
+        if (film) {
+          const timers = timersRef.current;
+          clearTimeout(timers.get(filmId));
+          timers.set(
+            filmId,
+            setTimeout(() => persist(film, next), 400),
+          );
+        }
         return updated;
       });
     },
-    [submitted],
+    [knownFilms, persist],
   );
 
-  // Debounced search against the proxied TMDB route.
+  // Debounced search against the proxied TMDB route. Clearing the box resets
+  // results synchronously in the input handler, not here.
   useEffect(() => {
     const q = query.trim();
-    if (!q) {
-      setResults(null);
-      return;
-    }
+    if (!q) return;
 
-    setSearching(true);
     const timer = setTimeout(async () => {
       try {
         const res = await fetch(`/api/films/search?q=${encodeURIComponent(q)}`);
@@ -97,20 +150,19 @@ export function DraftBoard({
     return () => clearTimeout(timer);
   }, [query]);
 
-  const myNominations = useMemo<Nomination[]>(
-    () =>
-      Object.entries(allocations).map(([filmId, points]) => ({
-        filmId: Number(filmId),
-        memberId: currentMemberId,
-        points,
-      })),
-    [allocations, currentMemberId],
-  );
-
-  const pool = useMemo(
-    () => buildPool([...existingNominations, ...myNominations], knownFilms, season.weights),
-    [existingNominations, myNominations, knownFilms, season.weights],
-  );
+  /** Pool ranked the way the slate algorithm will rank it (PLAN.md §1.2). */
+  const rankedPool = useMemo(() => {
+    const maxPoints = Math.max(1, ...pool.map((r) => r.points));
+    return pool
+      .map((row) => ({
+        ...row,
+        mine: (allocations[row.tmdbId] ?? 0) > 0,
+        score:
+          weights.guild * (row.points / maxPoints) +
+          weights.critic * ((row.film?.voteAverage ?? 0) / 10),
+      }))
+      .sort((a, b) => b.score - a.score || b.points - a.points);
+  }, [pool, allocations, weights]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -122,7 +174,18 @@ export function DraftBoard({
     if (typeof filmId === "number") allocate(filmId, 1);
   }
 
-  const displayed = results ?? catalog;
+  // Default browse view: films I've staked from search float to the front so
+  // they stay adjustable after the search box clears.
+  const displayed = useMemo(() => {
+    if (results) return results;
+    const catalogIds = new Set(catalog.map((f) => f.id));
+    const stakedOutsideCatalog = Object.keys(allocations)
+      .map(Number)
+      .filter((id) => !catalogIds.has(id))
+      .map((id) => knownFilms.get(id))
+      .filter((f): f is Film => Boolean(f));
+    return [...stakedOutsideCatalog, ...catalog];
+  }, [results, catalog, allocations, knownFilms]);
 
   return (
     <DndContext
@@ -136,7 +199,7 @@ export function DraftBoard({
     >
       <div className="grid gap-12 lg:grid-cols-[1fr_320px]">
         <section>
-          <ChipTray unspent={unspent} spent={spent} submitted={submitted} />
+          <ChipTray unspent={unspent} spent={spent} />
 
           <div className="mt-8">
             <label className="label-eyebrow block" htmlFor="film-search">
@@ -146,7 +209,12 @@ export function DraftBoard({
               id="film-search"
               type="search"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                setQuery(value);
+                if (value.trim()) setSearching(true);
+                else setResults(null);
+              }}
               placeholder="Title or director…"
               className="mt-3 w-full border-b border-ink bg-transparent pb-3 text-2xl tracking-tight outline-none placeholder:text-ink-faint focus:border-signal"
             />
@@ -155,7 +223,7 @@ export function DraftBoard({
                 ? "Searching…"
                 : live
                   ? "Live results from TMDB."
-                  : `Showing the ${season.category} fixture catalog — add a TMDB key for live search.`}
+                  : `Showing the ${categoryName} fixture catalog — add a TMDB key for live search.`}
             </p>
           </div>
 
@@ -170,7 +238,7 @@ export function DraftBoard({
                   key={film.id}
                   film={film}
                   allocated={allocations[film.id] ?? 0}
-                  canAdd={unspent > 0 && !submitted}
+                  canAdd={unspent > 0}
                   onAllocate={allocate}
                 />
               ))}
@@ -179,12 +247,11 @@ export function DraftBoard({
         </section>
 
         <Pool
-          pool={pool}
-          currentMemberId={currentMemberId}
-          filmCount={season.filmCount}
+          pool={rankedPool}
+          filmCount={filmCount}
           spent={spent}
-          submitted={submitted}
-          onSubmit={() => setSubmitted(true)}
+          saveState={saveState}
+          saveError={saveError}
         />
       </div>
 
@@ -199,25 +266,15 @@ export function DraftBoard({
 
 /* ------------------------------------------------------------------ */
 
-function ChipTray({
-  unspent,
-  spent,
-  submitted,
-}: {
-  unspent: number;
-  spent: number;
-  submitted: boolean;
-}) {
+function ChipTray({ unspent, spent }: { unspent: number; spent: number }) {
   return (
     <div className="flex flex-wrap items-center gap-6 border border-ink bg-paper-raised px-6 py-5">
       <div>
         <p className="label-eyebrow">Your nomination points</p>
         <p className="mt-1 text-sm text-ink-soft">
-          {submitted
-            ? "Locked in."
-            : unspent === 0
-              ? "All five spent. Drag a chip off a film to rethink."
-              : "Drag a chip onto a film, or use the + on any card."}
+          {unspent === 0
+            ? "All five spent. Drag a chip off a film to rethink."
+            : "Drag a chip onto a film, or use the + on any card."}
         </p>
       </div>
 
@@ -324,79 +381,83 @@ function FilmCard({
 
 function Pool({
   pool,
-  currentMemberId,
   filmCount,
   spent,
-  submitted,
-  onSubmit,
+  saveState,
+  saveError,
 }: {
-  pool: ReturnType<typeof buildPool>;
-  currentMemberId: string;
+  pool: Array<PoolRow & { mine: boolean; score: number }>;
   filmCount: number;
   spent: number;
-  submitted: boolean;
-  onSubmit: () => void;
+  saveState: SaveState;
+  saveError: string | null;
 }) {
   return (
     <aside className="lg:sticky lg:top-8 lg:self-start">
       <h2 className="label-eyebrow">The pool</h2>
       <p className="mt-2 text-xs leading-relaxed text-ink-faint">
-        Totals are live. Who nominated what stays hidden until the slate locks.
+        Totals are live across the guild. Who nominated what stays hidden until
+        the slate locks.
       </p>
 
-      <ol className="mt-6 space-y-0 border-t border-rule">
-        {pool.map((entry, index) => {
-          const mine = entry.nominatorIds.includes(currentMemberId);
-          const onSlate = index < filmCount;
+      {pool.length === 0 ? (
+        <p className="mt-6 border-t border-rule pt-4 text-sm text-ink-soft">
+          Nothing staked yet — the first chip starts the pool.
+        </p>
+      ) : (
+        <ol className="mt-6 space-y-0 border-t border-rule">
+          {pool.map((entry, index) => {
+            const onSlate = index < filmCount;
 
-          return (
-            <li
-              key={entry.film.id}
-              className={`flex items-baseline gap-3 border-b border-rule py-3 ${
-                onSlate ? "" : "opacity-45"
-              }`}
-            >
-              <span className="w-4 shrink-0 tabular-nums text-xs text-ink-faint">
-                {index + 1}
-              </span>
-
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm tracking-tight">
-                  {entry.film.title}
-                  {mine && <span className="ml-1.5 text-signal">●</span>}
+            return (
+              <li
+                key={entry.tmdbId}
+                className={`flex items-baseline gap-3 border-b border-rule py-3 ${
+                  onSlate ? "" : "opacity-45"
+                }`}
+              >
+                <span className="w-4 shrink-0 tabular-nums text-xs text-ink-faint">
+                  {index + 1}
                 </span>
-                <span className="text-xs text-ink-faint">
-                  {entry.nominatorIds.length} nominator
-                  {entry.nominatorIds.length === 1 ? "" : "s"}
-                </span>
-              </span>
 
-              <span className="shrink-0 tabular-nums text-sm font-medium">
-                {entry.points}
-              </span>
-            </li>
-          );
-        })}
-      </ol>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm tracking-tight">
+                    {entry.film?.title ?? "Unknown film"}
+                    {entry.mine && <span className="ml-1.5 text-signal">●</span>}
+                  </span>
+                  <span className="text-xs text-ink-faint">
+                    {entry.nominatorCount} nominator
+                    {entry.nominatorCount === 1 ? "" : "s"}
+                  </span>
+                </span>
+
+                <span className="shrink-0 tabular-nums text-sm font-medium">
+                  {entry.points}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      )}
 
       <p className="mt-4 text-xs text-ink-faint">
         Top {filmCount} make the slate. A tie at the cut expands it.
       </p>
 
-      <button
-        type="button"
-        onClick={onSubmit}
-        disabled={spent === 0 || submitted}
-        className="mt-8 w-full bg-ink px-5 py-4 text-sm font-medium uppercase tracking-[0.14em] text-paper transition-colors hover:bg-signal disabled:opacity-30 disabled:hover:bg-ink"
+      <p
+        className={`mt-6 border-t border-rule pt-4 text-xs ${
+          saveState === "error" ? "text-signal" : "text-ink-faint"
+        }`}
+        role="status"
       >
-        {submitted ? "Nominations submitted" : "Lock in nominations"}
-      </button>
-
-      {!submitted && spent > 0 && spent < POINTS_PER_MEMBER && (
-        <p className="mt-3 text-center text-xs text-ink-faint">
-          You still have {POINTS_PER_MEMBER - spent} unspent.
-        </p>
-      )}
+        {saveState === "error"
+          ? saveError
+          : saveState === "saving"
+            ? "Saving…"
+            : spent > 0
+              ? "Stakes saved. Rethink freely until nominations lock."
+              : "Stakes save automatically as you place them."}
+      </p>
     </aside>
   );
 }

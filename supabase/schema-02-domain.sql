@@ -192,7 +192,12 @@ create policy "Members can read seasons"
 drop policy if exists "Commissioners manage seasons" on public.seasons;
 create policy "Commissioners manage seasons"
   on public.seasons for insert to authenticated
-  with check (public.is_guild_commissioner(guild_id));
+  with check (
+    public.is_guild_commissioner(guild_id)
+    -- A season can't be born past its playable states; PUBLISHED in
+    -- particular only exists via publish_season().
+    and state in ('DRAFT', 'NOMINATING')
+  );
 
 drop policy if exists "Commissioners update seasons" on public.seasons;
 create policy "Commissioners update seasons"

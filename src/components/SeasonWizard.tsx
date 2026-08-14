@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+
+import { createSeason } from "@/app/commissioner/new/actions";
 
 import { DiscordPanel } from "./DiscordPanel";
 import { buildPool, selectSlate } from "@/lib/slate";
@@ -14,17 +16,24 @@ import {
 import { EXISTING_NOMINATIONS } from "@/lib/mock/guild";
 import {
   MAX_AWARD_CATEGORIES,
-  MAX_GUILD_MEMBERS,
   type AwardCategory,
   type Film,
 } from "@/lib/types";
 
 const STEPS = ["Identity", "Format", "Awards", "Weighting", "Discord"] as const;
 
-export function SeasonWizard({ catalog }: { catalog: Film[] }) {
+export function SeasonWizard({
+  catalog,
+  guildId,
+  guildName: initialGuildName,
+}: {
+  catalog: Film[];
+  guildId: string;
+  guildName: string;
+}) {
   const [step, setStep] = useState(0);
 
-  const [guildName, setGuildName] = useState("The Sunday Couch");
+  const [guildName, setGuildName] = useState(initialGuildName);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [presetId, setPresetId] = useState("standard");
   const [awardIds, setAwardIds] = useState<string[]>(DEFAULT_AWARD_IDS);
@@ -32,7 +41,8 @@ export function SeasonWizard({ catalog }: { catalog: Film[] }) {
   const [customDraft, setCustomDraft] = useState("");
   /** Percentage weight on the guild's own conviction; critic takes the rest. */
   const [guildWeight, setGuildWeight] = useState(80);
-  const [created, setCreated] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
 
   const category = SEASON_CATEGORIES.find((c) => c.id === categoryId) ?? null;
   const preset = SEASON_PRESETS.find((p) => p.id === presetId) ?? SEASON_PRESETS[0];
@@ -40,15 +50,22 @@ export function SeasonWizard({ catalog }: { catalog: Film[] }) {
 
   const canAdvance = step === 0 ? Boolean(category && guildName.trim()) : true;
 
-  if (created && category) {
-    return (
-      <Confirmation
-        guildName={guildName}
-        categoryName={category.name}
-        filmCount={preset.filmCount}
-        awardCount={totalAwards}
-      />
-    );
+  function openSeason() {
+    if (!category) return;
+    setError(null);
+    startTransition(async () => {
+      // On success the action redirects to the guild page; only errors return.
+      const result = await createSeason({
+        guildId,
+        guildName,
+        categoryName: category.name,
+        presetId,
+        awardIds,
+        customAwardNames: customAwards.map((a) => a.name),
+        guildWeight,
+      });
+      if (result?.error) setError(result.error);
+    });
   }
 
   return (
@@ -135,13 +152,16 @@ export function SeasonWizard({ catalog }: { catalog: Film[] }) {
           ) : (
             <button
               type="button"
-              onClick={() => setCreated(true)}
-              className="bg-signal px-7 py-3.5 text-sm font-medium uppercase tracking-[0.14em] text-paper transition-colors hover:bg-ink"
+              onClick={openSeason}
+              disabled={pending || !category}
+              className="bg-signal px-7 py-3.5 text-sm font-medium uppercase tracking-[0.14em] text-paper transition-colors hover:bg-ink disabled:opacity-30"
             >
-              Open the season
+              {pending ? "Opening…" : "Open the season"}
             </button>
           )}
         </nav>
+
+        {error && <p className="mt-4 text-right text-sm text-signal">{error}</p>}
       </div>
     </div>
   );
@@ -594,43 +614,3 @@ function WeightingStep({
   );
 }
 
-function Confirmation({
-  guildName,
-  categoryName,
-  filmCount,
-  awardCount,
-}: {
-  guildName: string;
-  categoryName: string;
-  filmCount: number;
-  awardCount: number;
-}) {
-  return (
-    <section className="max-w-xl">
-      <p className="label-eyebrow text-signal">Season open</p>
-      <h2 className="mt-3 text-5xl font-medium uppercase leading-none tracking-tight">
-        {categoryName}
-      </h2>
-      <p className="mt-5 text-sm leading-relaxed text-ink-soft">
-        {guildName} is nominating. {filmCount} films, {awardCount} awards. Every
-        member has five points to spend.
-      </p>
-
-      <div className="mt-10 border border-ink bg-paper-raised p-6">
-        <p className="label-eyebrow">Invite link</p>
-        <p className="mt-2 break-all font-mono text-sm">
-          couchcinema.club/join/{guildName.toLowerCase().replace(/\s+/g, "-")}
-        </p>
-        <p className="mt-4 text-xs text-ink-faint">
-          Up to {MAX_GUILD_MEMBERS} members. Past that, nominations dilute and
-          individual picks stop mattering.
-        </p>
-      </div>
-
-      <p className="mt-8 text-xs leading-relaxed text-ink-faint">
-        Nothing here persists yet — this prototype holds the season in memory
-        only. Refreshing starts over.
-      </p>
-    </section>
-  );
-}

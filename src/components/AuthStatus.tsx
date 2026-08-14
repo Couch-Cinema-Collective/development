@@ -33,7 +33,12 @@ export async function AuthStatus() {
 
   return (
     <div className="flex items-center gap-4">
-      <span className="label-eyebrow text-ink">{name}</span>
+      <Link
+        href="/welcome"
+        className="label-eyebrow text-ink transition-colors hover:text-signal"
+      >
+        {name}
+      </Link>
       <form action={signOut}>
         <button
           type="submit"

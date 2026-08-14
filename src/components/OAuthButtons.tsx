@@ -14,7 +14,7 @@ import { createClient } from "@/lib/supabase/client";
 // Supabase (Authentication → Sign In / Providers → Facebook).
 const FACEBOOK_ENABLED = false;
 
-export function OAuthButtons({ next = "/" }: { next?: string }) {
+export function OAuthButtons({ next = "/welcome" }: { next?: string }) {
   const [error, setError] = useState<string | null>(null);
 
   async function signInWith(provider: "google" | "facebook") {
