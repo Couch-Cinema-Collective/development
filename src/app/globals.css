@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+/*
+ * Couch Cinema Collective — design tokens
+ *
+ * Palette derived by eye from the brand pattern PNGs. The exact hexes should be
+ * confirmed against Cinema_Style.pdf; they are defined here and nowhere else, so
+ * correcting them is a one-file change.
+ */
+@theme {
+  --color-ink: #0b0b0b;
+  --color-ink-soft: #3d3d3d;
+  --color-ink-faint: #8c8c8c;
+  --color-rule: #d9d5cc;
+
+  --color-paper: #f7f5f0;
+  --color-paper-raised: #ffffff;
+
+  --color-signal: #e62b24;
+  --color-signal-dark: #b01810;
+
+  --font-display: var(--font-jost), ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Institutional micro-label: uppercase, wide tracking, hairline rule beneath. */
+@utility label-eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+}
+
+@utility rule-hair {
+  border-top: 1px solid var(--color-rule);
+}
+
+/* The couch-eye motif tiled behind full-bleed sections. */
+@utility pattern-signal {
+  background-color: var(--color-signal);
+  background-image: url("/brand/Cinema_Style_red pat.png");
+  background-size: 420px auto;
+}
+
+/*
+ * Ceremony reel — one award per screen, snapped. The reel is its own scroll
+ * container so each card fills the viewport below the site header.
+ */
+.ceremony-reel {
+  height: calc(100dvh - 4.35rem);
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  background: var(--color-ink);
+}
+
+.ceremony-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  padding: 4rem 1.5rem;
+  scroll-snap-align: start;
+}
+
+/* Save as PDF: one award per page, chrome removed, ink background preserved. */
+@media print {
+  body > header,
+  body > footer,
+  .ceremony-toolbar {
+    display: none !important;
+  }
+
+  .ceremony-reel {
+    height: auto;
+    overflow: visible;
+  }
+
+  .ceremony-card {
+    min-height: 0;
+    padding: 4rem 3rem;
+    break-after: page;
+  }
+
+  body,
+  .ceremony-reel {
+    background: var(--color-ink);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
