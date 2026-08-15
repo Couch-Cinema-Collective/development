@@ -42,7 +42,7 @@ export async function createSeason(
     .eq("user_id", user.id)
     .maybeSingle();
   if (membership?.role !== "commissioner") {
-    return { error: "Only the guild's commissioner can open a season." };
+    return { error: "Only the guild president can open a season." };
   }
 
   const preset = SEASON_PRESETS.find((p) => p.id === input.presetId);

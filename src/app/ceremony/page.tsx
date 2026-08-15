@@ -43,7 +43,7 @@ export default async function CeremonyPage({
           No envelope yet
         </h1>
         <p className="mt-6 max-w-xl leading-relaxed text-ink-soft">
-          The ceremony plays here once your commissioner publishes a season&apos;s
+          The ceremony plays here once your guild president publishes a season&apos;s
           results. Until then, the suspense is the point —{" "}
           <Link href="/vote" className="underline hover:text-signal">
             cast your ballot

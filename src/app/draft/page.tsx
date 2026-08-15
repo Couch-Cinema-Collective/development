@@ -58,7 +58,7 @@ export default async function DraftPage({
               to get started.
             </>
           ) : (
-            " When your commissioner opens one, the draft happens here."
+            " When your guild president opens one, the draft happens here."
           )}
         </p>
       </main>

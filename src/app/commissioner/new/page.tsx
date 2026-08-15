@@ -28,7 +28,7 @@ export default async function NewSeasonPage({
     return (
       <main className="mx-auto max-w-4xl px-6 py-12">
         <header className="border-b border-rule pb-8">
-          <p className="label-eyebrow">Commissioner</p>
+          <p className="label-eyebrow">President</p>
           <h1 className="mt-3 text-5xl font-medium uppercase leading-none tracking-tight">
             New Season
           </h1>
@@ -56,7 +56,7 @@ export default async function NewSeasonPage({
   return (
     <main className="mx-auto max-w-6xl px-6 py-12">
       <header className="border-b border-rule pb-8">
-        <p className="label-eyebrow">Commissioner · {guild.guildName}</p>
+        <p className="label-eyebrow">President · {guild.guildName}</p>
         <h1 className="mt-3 text-5xl font-medium uppercase leading-none tracking-tight">
           New Season
         </h1>

@@ -331,7 +331,7 @@ function IdentityStep({
         <p className="mt-4 text-xs text-ink-faint">
           {SEASON_CATEGORIES.length} categories. Every one has a page in the{" "}
           <Link href="/wiki" className="underline hover:text-ink">
-            film school
+            film collection
           </Link>
           .
         </p>
@@ -544,7 +544,7 @@ function WeightingStep({
     <section>
       <StepHeading
         title="Weight the slate"
-        blurb="How much the guild's own conviction counts against outside critical opinion. Most commissioners leave this alone."
+        blurb="How much the guild's own conviction counts against outside critical opinion. Most presidents leave this alone."
       />
 
       <div className="border border-ink bg-paper-raised p-6">

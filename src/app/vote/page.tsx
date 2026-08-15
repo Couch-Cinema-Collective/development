@@ -41,7 +41,7 @@ export default async function VotePage({
           Voting isn&apos;t open
         </h1>
         <p className="mt-6 max-w-xl leading-relaxed text-ink-soft">
-          The ballot appears when your commissioner opens voting. Until then,{" "}
+          The ballot appears when your guild president opens voting. Until then,{" "}
           <Link href="/season" className="underline hover:text-signal">
             the season room
           </Link>{" "}

@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import "./globals.css";
 import { AuthStatus } from "@/components/AuthStatus";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { createClient } from "@/lib/supabase/server";
 
 // Geometric grotesque, the closest free match to the wordmark in the logo lockup.
 const jost = Jost({
@@ -18,20 +20,34 @@ export const metadata: Metadata = {
     "Guilds of film watchers nominate, watch, and award a season of cinema together.",
 };
 
-const NAV = [
+/**
+ * Deliberately spare (per design review): the season surfaces — draft,
+ * season room, ballot, ceremony — are navigated from the guild page, not
+ * from here.
+ */
+const PUBLIC_NAV = [
   { href: "/", label: "Home" },
-  { href: "/draft", label: "Draft" },
-  { href: "/season", label: "In Season" },
-  { href: "/vote", label: "Ballot" },
-  { href: "/ceremony", label: "Ceremony" },
-  { href: "/wiki", label: "Film School" },
-  { href: "/commissioner/new", label: "Commission" },
+  { href: "/wiki", label: "Film Collection" },
+];
+
+const MEMBER_NAV = [
+  { href: "/welcome", label: "Your Guild" },
   { href: "/profile", label: "Profile" },
 ];
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  let signedIn = false;
+  if (isSupabaseConfigured()) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    signedIn = Boolean(user);
+  }
+  const nav = signedIn ? [...PUBLIC_NAV, ...MEMBER_NAV] : PUBLIC_NAV;
+
   return (
     <html lang="en" className={jost.variable}>
       <body className="min-h-screen antialiased">
@@ -49,7 +65,7 @@ export default function RootLayout({
             </Link>
 
             <nav className="flex items-center gap-7">
-              {NAV.map((item) => (
+              {nav.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}

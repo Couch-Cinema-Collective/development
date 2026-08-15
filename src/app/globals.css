@@ -46,11 +46,17 @@ body {
   border-top: 1px solid var(--color-rule);
 }
 
-/* The couch-eye motif tiled behind full-bleed sections. */
+/*
+ * The couch-eye motif behind full-bleed sections. The source art is one
+ * 8000px composition, not a seamless tile — tiling it produced cut-off
+ * couches and a visible seam, so it renders as a single cover image.
+ */
 @utility pattern-signal {
   background-color: var(--color-signal);
   background-image: url("/brand/Cinema_Style_red pat.png");
-  background-size: 420px auto;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 /*

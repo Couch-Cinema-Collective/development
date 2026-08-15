@@ -33,7 +33,7 @@ export default async function CategoryPage({
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">
       <Link href="/wiki" className="label-eyebrow transition-colors hover:text-ink">
-        ← Film School
+        ← Film Collection
       </Link>
 
       <header className="mt-6 border-b border-rule pb-8">

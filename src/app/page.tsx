@@ -4,14 +4,11 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
-/** The season arc, as a pitch: what joining actually gets you. */
+/** The season arc, as a pitch. Three beats — the machinery is implied. */
 const ARC = [
   { label: "Nominate", note: "Five points, spent on conviction" },
-  { label: "Tally", note: "The guild's slate emerges" },
-  { label: "Slate", note: "Nominators revealed, films locked" },
   { label: "Watch", note: "On your own time, together" },
-  { label: "Vote", note: "One pick per award — if you finished" },
-  { label: "Ceremony", note: "Envelopes, credits, a record that grows" },
+  { label: "Vote", note: "One pick per award — then the ceremony settles it" },
 ];
 
 export default async function LandingPage() {
@@ -63,16 +60,16 @@ export default async function LandingPage() {
       <section className="mx-auto max-w-7xl px-6 py-16">
         <h2 className="label-eyebrow">How a season runs</h2>
 
-        <ol className="mt-6 grid gap-px border border-rule bg-rule sm:grid-cols-3 lg:grid-cols-6">
+        <ol className="mt-6 grid gap-px border border-rule bg-rule sm:grid-cols-3">
           {ARC.map((step, index) => (
-            <li key={step.label} className="bg-paper-raised px-5 py-6">
+            <li key={step.label} className="bg-paper-raised px-6 py-8">
               <span className="label-eyebrow">
                 {String(index + 1).padStart(2, "0")}
               </span>
-              <p className="mt-2 text-sm font-medium uppercase tracking-tight">
+              <p className="mt-2 text-2xl font-medium uppercase tracking-tight">
                 {step.label}
               </p>
-              <p className="mt-2 text-xs leading-relaxed text-ink-faint">
+              <p className="mt-2 text-sm leading-relaxed text-ink-faint">
                 {step.note}
               </p>
             </li>
@@ -106,7 +103,7 @@ export default async function LandingPage() {
         <p className="mt-16 text-sm text-ink-soft">
           Curious before committing? The{" "}
           <Link href="/wiki" className="underline hover:text-signal">
-            film school
+            film collection
           </Link>{" "}
           is open to everyone.
         </p>

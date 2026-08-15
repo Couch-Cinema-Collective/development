@@ -178,7 +178,7 @@ export function Ballot({
 
       <p className="mt-16 border-t border-rule pt-6 text-sm leading-relaxed text-ink-soft">
         Every pick saves the moment you make it, and you can change any of them
-        until the commissioner publishes the ceremony. Results stay sealed until
+        until the guild president publishes the ceremony. Results stay sealed until
         then — and once published, they cannot be altered.
       </p>
     </div>
