@@ -53,6 +53,13 @@ body {
   background-size: 420px auto;
 }
 
+/* Dark-red variant — commissioner (guild president) screens and member profiles. */
+@utility pattern-signal-dark {
+  background-color: var(--color-signal-dark);
+  background-image: url("/brand/Cinema_Style_dark red pat.png");
+  background-size: 420px auto;
+}
+
 /*
  * Ceremony reel — one award per screen, snapped. The reel is its own scroll
  * container so each card fills the viewport below the site header.
