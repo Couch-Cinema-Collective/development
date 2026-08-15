@@ -30,10 +30,9 @@ const PUBLIC_NAV = [
   { href: "/wiki", label: "Film Collection" },
 ];
 
-const MEMBER_NAV = [
-  { href: "/welcome", label: "My Guilds" },
-  { href: "/profile", label: "Profile" },
-];
+// "My Guilds" lives as the boxed button in AuthStatus, not here — having it
+// in both places read as a duplicate.
+const MEMBER_NAV = [{ href: "/profile", label: "Profile" }];
 
 export default async function RootLayout({
   children,
