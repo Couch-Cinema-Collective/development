@@ -26,6 +26,8 @@ export async function signup(
   const email = String(formData.get("email") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim();
   const password = String(formData.get("password") ?? "");
+  const rawNext = String(formData.get("next") ?? "/welcome");
+  const next = rawNext.startsWith("/") ? rawNext : "/welcome";
 
   if (!isSupabaseConfigured()) return { error: NOT_CONFIGURED };
   if (!name) return { error: "Name is required." };
@@ -54,7 +56,7 @@ export async function signup(
   }
 
   revalidatePath("/", "layout");
-  redirect("/");
+  redirect(next);
 }
 
 export async function login(
@@ -63,7 +65,7 @@ export async function login(
 ): Promise<AuthFormState> {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
-  const next = String(formData.get("next") ?? "/");
+  const next = String(formData.get("next") ?? "/welcome");
 
   if (!isSupabaseConfigured()) return { error: NOT_CONFIGURED };
 
@@ -73,7 +75,7 @@ export async function login(
   if (error) return { error: error.message };
 
   revalidatePath("/", "layout");
-  redirect(next.startsWith("/") ? next : "/");
+  redirect(next.startsWith("/") ? next : "/welcome");
 }
 
 export async function signOut() {

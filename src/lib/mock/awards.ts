@@ -6,30 +6,38 @@ import { AWARD_TIER_ORDER, type AwardCategory } from "../types";
  *
  * Order within a tier is announcement order; `ceremonyOrder` handles the tiers.
  */
+/**
+ * Catalog order is the awards-tab display order (design review): Best
+ * Picture leads, then Director, the acting awards mirroring the Oscars,
+ * Screenplay, Cinematography, Score, then the rest.
+ */
 export const AWARD_CATALOG: AwardCategory[] = [
-  { id: "makeup", name: "Best Makeup & Hair", tier: "craft" },
-  { id: "costume", name: "Best Costume Design", tier: "craft" },
-  { id: "design", name: "Best Production Design", tier: "craft" },
-  { id: "vfx", name: "Best Visual Effects", tier: "craft" },
-  { id: "sound", name: "Best Sound", tier: "craft" },
+  { id: "picture", name: "Best Picture", tier: "picture", locked: true },
+  { id: "director", name: "Best Director", tier: "direction" },
+  { id: "actor", name: "Best Actor", tier: "performance" },
+  { id: "actress", name: "Best Actress", tier: "performance" },
+  { id: "supporting-actor", name: "Best Supporting Actor", tier: "performance" },
+  { id: "supporting-actress", name: "Best Supporting Actress", tier: "performance" },
+  { id: "ensemble", name: "Best Ensemble", tier: "performance" },
+  { id: "screenplay", name: "Best Screenplay", tier: "writing" },
+  { id: "cinematography", name: "Best Cinematography", tier: "craft" },
   { id: "score", name: "Best Score", tier: "craft" },
   { id: "editing", name: "Best Editing", tier: "craft" },
-  { id: "cinematography", name: "Best Cinematography", tier: "craft" },
-  { id: "adapted", name: "Best Adapted Screenplay", tier: "writing" },
-  { id: "screenplay", name: "Best Original Screenplay", tier: "writing" },
-  { id: "ensemble", name: "Best Ensemble", tier: "performance" },
-  { id: "supporting", name: "Best Supporting Performance", tier: "performance" },
-  { id: "lead-actor", name: "Best Lead Performance", tier: "performance" },
-  { id: "director", name: "Best Director", tier: "direction" },
-  { id: "picture", name: "Best Picture", tier: "picture", locked: true },
+  { id: "sound", name: "Best Sound", tier: "craft" },
+  { id: "vfx", name: "Best Visual Effects", tier: "craft" },
+  { id: "design", name: "Best Production Design", tier: "craft" },
+  { id: "costume", name: "Best Costume Design", tier: "craft" },
+  { id: "makeup", name: "Best Makeup & Hair", tier: "craft" },
 ];
 
-/** Sensible starting set for a first-time commissioner. */
+/** Sensible starting set for a first-time president. */
 export const DEFAULT_AWARD_IDS = [
   "picture",
   "director",
-  "lead-actor",
-  "supporting",
+  "actor",
+  "actress",
+  "supporting-actor",
+  "supporting-actress",
   "screenplay",
   "cinematography",
   "editing",
@@ -62,17 +70,20 @@ export const SEASON_PRESETS = [
     filmCount: 6,
   },
   {
-    id: "year",
-    label: "One year, twelve films",
-    note: "A film a month. Slow burn, big finale.",
-    months: 12,
-    filmCount: 12,
+    id: "intense",
+    label: "Six weeks, five films",
+    note: "Nearly a film a week. High engagement, short commitment.",
+    months: 1.5,
+    filmCount: 5,
   },
   {
-    id: "sprint",
-    label: "Six weeks, three films",
-    note: "A film a fortnight. High engagement, short commitment.",
-    months: 1.5,
-    filmCount: 3,
+    id: "marathon",
+    label: "Four months, ten films",
+    note: "A film every twelve days, for guilds going for it.",
+    months: 4,
+    filmCount: 10,
   },
 ];
+
+/** No slate judges more than twelve films (design review). */
+export const MAX_SEASON_FILMS = 12;

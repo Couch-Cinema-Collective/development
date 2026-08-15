@@ -61,6 +61,34 @@ export async function getUserMemberships(): Promise<Membership[]> {
   }));
 }
 
+export interface SeasonSummary {
+  id: string;
+  number: number;
+  category: string;
+  state: string;
+  filmCount: number;
+  nominationDeadline: string | null;
+}
+
+/** Seasons for a guild, newest first. RLS scopes to members. */
+export async function getGuildSeasons(guildId: string): Promise<SeasonSummary[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("seasons")
+    .select("id, number, category, state, film_count, nomination_deadline")
+    .eq("guild_id", guildId)
+    .order("number", { ascending: false });
+
+  return (data ?? []).map((s) => ({
+    id: s.id,
+    number: s.number,
+    category: s.category,
+    state: s.state,
+    filmCount: s.film_count,
+    nominationDeadline: s.nomination_deadline,
+  }));
+}
+
 /** Guild + roster for the guild home page. Null if not a member (RLS). */
 export async function getGuildHome(guildId: string): Promise<GuildHome | null> {
   const supabase = await createClient();

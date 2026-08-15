@@ -21,7 +21,7 @@ export default function WikiPage() {
       <header className="border-b border-rule pb-8">
         <p className="label-eyebrow">The Collection</p>
         <h1 className="mt-3 text-6xl font-medium uppercase leading-none tracking-tight">
-          Film School
+          Film Collection
         </h1>
         <p className="mt-5 max-w-xl text-sm leading-relaxed text-ink-soft">
           Every category a season can be built from, with a plain definition and

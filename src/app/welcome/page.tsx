@@ -45,7 +45,7 @@ export default async function WelcomePage() {
                   {m.guildName}
                 </span>
                 <span className="label-eyebrow">
-                  {m.role === "commissioner" ? "Commissioner" : "Member"} ·{" "}
+                  {m.role === "commissioner" ? "President" : "Member"} ·{" "}
                   {m.memberCount} {m.memberCount === 1 ? "member" : "members"}
                 </span>
               </Link>
@@ -68,7 +68,7 @@ export default async function WelcomePage() {
             Found a guild
           </h2>
           <p className="mt-4 text-sm leading-relaxed text-ink-soft">
-            You become its commissioner: you set up seasons, lock the slate,
+            You become its president: you set up seasons, lock the slate,
             and publish the ceremony.
           </p>
           <div className="mt-6">

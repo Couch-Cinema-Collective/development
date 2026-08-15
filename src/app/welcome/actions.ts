@@ -1,5 +1,7 @@
 "use server";
 
+import { randomUUID } from "crypto";
+
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -22,15 +24,17 @@ export async function createGuild(
   } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/welcome");
 
-  const { data: guild, error } = await supabase
+  // Generate the id here rather than asking the insert to RETURNING it:
+  // the guilds select-policy requires membership, which the on-insert trigger
+  // only creates after the statement — so a returning read is denied by RLS.
+  const id = randomUUID();
+  const { error } = await supabase
     .from("guilds")
-    .insert({ name, created_by: user.id })
-    .select("id")
-    .single();
+    .insert({ id, name, created_by: user.id });
   if (error) return { error: error.message };
 
   revalidatePath("/welcome");
-  redirect(`/guild/${guild.id}`);
+  redirect(`/guild/${id}`);
 }
 
 /** Player path: invite code → membership, via the join_guild RPC. */

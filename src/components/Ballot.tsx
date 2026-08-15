@@ -4,21 +4,36 @@ import { useState } from "react";
 import Link from "next/link";
 
 import { FilmPoster } from "./FilmPoster";
+import { castVote } from "@/app/vote/actions";
 import type { AwardCategory, Ballot as BallotType, Film } from "@/lib/types";
 
 interface BallotProps {
+  seasonId: string;
   awards: AwardCategory[];
   slate: Film[];
   watchedIds: number[];
+  /** Saved picks: award id → tmdb id. */
+  initialBallot: BallotType;
+  /** True when the season runs on the honor system (§1.5). */
+  honorGate: boolean;
 }
 
-export function Ballot({ awards, slate, watchedIds }: BallotProps) {
-  const [overrideGate, setOverrideGate] = useState(false);
-  const [ballot, setBallot] = useState<BallotType>({});
-  const [submitted, setSubmitted] = useState(false);
+type SaveState = "idle" | "saving" | "saved" | "error";
+
+export function Ballot({
+  seasonId,
+  awards,
+  slate,
+  watchedIds,
+  initialBallot,
+  honorGate,
+}: BallotProps) {
+  const [ballot, setBallot] = useState<BallotType>(initialBallot);
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const unwatched = slate.filter((f) => !watchedIds.includes(f.id));
-  const gated = unwatched.length > 0 && !overrideGate;
+  const gated = honorGate && unwatched.length > 0;
 
   if (gated) {
     return (
@@ -28,8 +43,9 @@ export function Ballot({ awards, slate, watchedIds }: BallotProps) {
           {watchedIds.length} of {slate.length} watched
         </h2>
         <p className="mt-4 text-sm leading-relaxed text-ink-soft">
-          Voting opens once you&apos;ve finished the slate. Missing a film
-          doesn&apos;t cost you anything except this round&apos;s vote.
+          Voting opens once you&apos;ve finished the slate. If you didn&apos;t
+          finish the movies, you just don&apos;t get to vote — that&apos;s the
+          deal. It costs you nothing but this round&apos;s ballot.
         </p>
 
         <ul className="mt-6 space-y-2">
@@ -41,54 +57,64 @@ export function Ballot({ awards, slate, watchedIds }: BallotProps) {
           ))}
         </ul>
 
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link
-            href="/season"
-            className="bg-ink px-6 py-3 text-xs uppercase tracking-[0.12em] text-paper transition-colors hover:bg-signal"
-          >
-            Back to the season
-          </Link>
-          <button
-            type="button"
-            onClick={() => setOverrideGate(true)}
-            className="border border-rule px-6 py-3 text-xs uppercase tracking-[0.12em] transition-colors hover:border-ink"
-          >
-            Skip the gate — prototype
-          </button>
-        </div>
-      </section>
-    );
-  }
-
-  if (submitted) {
-    const cast = Object.keys(ballot).length;
-    return (
-      <section className="max-w-xl">
-        <p className="label-eyebrow text-signal">Ballot cast</p>
-        <h2 className="mt-3 text-4xl font-medium uppercase leading-none tracking-tight">
-          {cast} of {awards.length}
-        </h2>
-        <p className="mt-4 text-sm leading-relaxed text-ink-soft">
-          Your votes are in. Results stay sealed until the commissioner publishes
-          them — and they cannot change a single one.
-        </p>
         <Link
-          href="/ceremony"
-          className="mt-8 inline-block bg-signal px-7 py-3.5 text-sm uppercase tracking-[0.14em] text-paper transition-colors hover:bg-ink"
+          href="/season"
+          className="mt-8 inline-block bg-ink px-6 py-3 text-xs uppercase tracking-[0.12em] text-paper transition-colors hover:bg-signal"
         >
-          Preview the ceremony
+          Back to the season
         </Link>
       </section>
     );
   }
+
+  function pick(awardId: string, filmId: number) {
+    const previous = ballot[awardId];
+    if (previous === filmId) return;
+    setBallot((prev) => ({ ...prev, [awardId]: filmId }));
+    setSaveState("saving");
+    setSaveError(null);
+    void castVote({ seasonId, awardId, tmdbId: filmId }).then((result) => {
+      if (result.error) {
+        // Roll the pick back to what the server last accepted.
+        setBallot((prev) => {
+          const next = { ...prev };
+          if (previous === undefined) delete next[awardId];
+          else next[awardId] = previous;
+          return next;
+        });
+        setSaveState("error");
+        setSaveError(result.error);
+        return;
+      }
+      setSaveState("saved");
+    });
+  }
+
+  const cast = Object.keys(ballot).length;
 
   return (
     <div>
       <div className="sticky top-0 z-10 -mx-6 border-b border-rule bg-paper/95 px-6 py-4 backdrop-blur">
         <div className="flex items-baseline justify-between">
           <span className="label-eyebrow">Your ballot</span>
-          <span className="text-sm tabular-nums">
-            {Object.keys(ballot).length} / {awards.length}
+          <span className="text-sm">
+            <span
+              className={`mr-4 text-xs ${
+                saveState === "error" ? "text-signal" : "text-ink-faint"
+              }`}
+              role="status"
+            >
+              {saveState === "error"
+                ? saveError
+                : saveState === "saving"
+                  ? "Saving…"
+                  : saveState === "saved"
+                    ? "Saved"
+                    : ""}
+            </span>
+            <span className="tabular-nums">
+              {cast} / {awards.length}
+            </span>
           </span>
         </div>
         <div className="mt-3 flex gap-1">
@@ -123,9 +149,7 @@ export function Ballot({ awards, slate, watchedIds }: BallotProps) {
                   <li key={film.id}>
                     <button
                       type="button"
-                      onClick={() =>
-                        setBallot((prev) => ({ ...prev, [award.id]: film.id }))
-                      }
+                      onClick={() => pick(award.id, film.id)}
                       className="group block w-full text-left"
                       aria-pressed={chosen}
                     >
@@ -152,14 +176,11 @@ export function Ballot({ awards, slate, watchedIds }: BallotProps) {
         ))}
       </ol>
 
-      <button
-        type="button"
-        onClick={() => setSubmitted(true)}
-        disabled={Object.keys(ballot).length === 0}
-        className="mt-16 w-full bg-ink px-6 py-5 text-sm font-medium uppercase tracking-[0.14em] text-paper transition-colors hover:bg-signal disabled:opacity-30 disabled:hover:bg-ink"
-      >
-        Cast ballot
-      </button>
+      <p className="mt-16 border-t border-rule pt-6 text-sm leading-relaxed text-ink-soft">
+        Every pick saves the moment you make it, and you can change any of them
+        until the guild president publishes the ceremony. Results stay sealed until
+        then — and once published, they cannot be altered.
+      </p>
     </div>
   );
 }

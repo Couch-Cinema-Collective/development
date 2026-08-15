@@ -4,53 +4,103 @@ import { useState } from "react";
 
 import { FilmPoster } from "./FilmPoster";
 import { DiscordPanel } from "./DiscordPanel";
-import type { Film, Member, Review } from "@/lib/types";
+import { saveReview, setWatched } from "@/app/season/actions";
+import type { Film } from "@/lib/types";
+
+/** A review as the room renders it — name resolved, ids from the DB. */
+export interface RoomReview {
+  id: string;
+  tmdbId: number;
+  userId: string;
+  memberName: string;
+  rating: number;
+  body: string;
+}
 
 interface SeasonRoomProps {
+  seasonId: string;
   slate: Film[];
-  reviews: Review[];
-  membersById: Record<string, Member>;
-  currentMemberId: string;
+  reviews: RoomReview[];
+  myUserId: string;
   initiallyWatched: number[];
+  /** False once voting opens — watched status is frozen then (§1.5). */
+  checklistOpen: boolean;
 }
 
 export function SeasonRoom({
+  seasonId,
   slate,
   reviews,
-  membersById,
-  currentMemberId,
+  myUserId,
   initiallyWatched,
+  checklistOpen,
 }: SeasonRoomProps) {
-  const [watched, setWatched] = useState<number[]>(initiallyWatched);
-  const [allReviews, setAllReviews] = useState<Review[]>(reviews);
+  const [watched, setWatchedState] = useState<number[]>(initiallyWatched);
+  const [allReviews, setAllReviews] = useState<RoomReview[]>(reviews);
   const [openFilmId, setOpenFilmId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const toggleWatched = (filmId: number) =>
-    setWatched((prev) =>
-      prev.includes(filmId) ? prev.filter((id) => id !== filmId) : [...prev, filmId],
+  const toggleWatched = (filmId: number) => {
+    if (!checklistOpen) return;
+    const nowWatched = !watched.includes(filmId);
+    // Optimistic; reverted if the save fails.
+    setWatchedState((prev) =>
+      nowWatched ? [...prev, filmId] : prev.filter((id) => id !== filmId),
     );
+    setError(null);
+    void setWatched({ seasonId, tmdbId: filmId, watched: nowWatched }).then(
+      (result) => {
+        if (result.error) {
+          setWatchedState((prev) =>
+            nowWatched ? prev.filter((id) => id !== filmId) : [...prev, filmId],
+          );
+          setError(result.error);
+        }
+      },
+    );
+  };
 
-  const addReview = (filmId: number, rating: number, body: string) => {
+  const addReview = async (
+    filmId: number,
+    rating: number,
+    body: string,
+  ): Promise<boolean> => {
+    setError(null);
+    const result = await saveReview({ seasonId, tmdbId: filmId, rating, body });
+    if (result.error) {
+      setError(result.error);
+      return false;
+    }
     setAllReviews((prev) => [
-      ...prev.filter(
-        (r) => !(r.filmId === filmId && r.memberId === currentMemberId),
-      ),
+      ...prev.filter((r) => !(r.tmdbId === filmId && r.userId === myUserId)),
       {
-        id: `r-${Date.now()}`,
-        filmId,
-        memberId: currentMemberId,
+        id: result.id ?? `local-${filmId}`,
+        tmdbId: filmId,
+        userId: myUserId,
+        memberName: "You",
         rating,
         body,
-        createdAt: new Date().toISOString(),
       },
     ]);
+    return true;
   };
 
   const eligible = watched.length === slate.length;
 
   return (
     <div className="space-y-14">
-      <ProgressBar watchedCount={watched.length} total={slate.length} eligible={eligible} />
+      <ProgressBar
+        watchedCount={watched.length}
+        total={slate.length}
+        eligible={eligible}
+        checklistOpen={checklistOpen}
+      />
+
+      {error && (
+        <p className="border border-signal px-4 py-3 text-sm text-signal">
+          {error}
+        </p>
+      )}
 
       <section>
         <h2 className="label-eyebrow">The slate</h2>
@@ -61,14 +111,14 @@ export function SeasonRoom({
               key={film.id}
               film={film}
               watched={watched.includes(film.id)}
+              canToggle={checklistOpen}
               onToggleWatched={() => toggleWatched(film.id)}
               open={openFilmId === film.id}
               onToggleOpen={() =>
                 setOpenFilmId((prev) => (prev === film.id ? null : film.id))
               }
-              reviews={allReviews.filter((r) => r.filmId === film.id)}
-              membersById={membersById}
-              currentMemberId={currentMemberId}
+              reviews={allReviews.filter((r) => r.tmdbId === film.id)}
+              myUserId={myUserId}
               onSubmitReview={(rating, body) => addReview(film.id, rating, body)}
             />
           ))}
@@ -86,10 +136,12 @@ function ProgressBar({
   watchedCount,
   total,
   eligible,
+  checklistOpen,
 }: {
   watchedCount: number;
   total: number;
   eligible: boolean;
+  checklistOpen: boolean;
 }) {
   return (
     <div className="border border-ink bg-paper-raised px-6 py-6">
@@ -103,9 +155,13 @@ function ProgressBar({
         </div>
 
         <p className="max-w-xs text-xs leading-relaxed text-ink-soft">
-          {eligible
-            ? "You've watched everything. Your ballot is unlocked for every category."
-            : `Watch the remaining ${total - watchedCount} to unlock the full ballot. Miss one and you simply skip that vote.`}
+          {!checklistOpen
+            ? eligible
+              ? "Voting is open and you've seen everything — your full ballot awaits."
+              : "Voting is open; the checklist is frozen. You vote in the categories for films you saw."
+            : eligible
+              ? "You've watched everything. Your ballot is unlocked for every category."
+              : `Watch the remaining ${total - watchedCount} to unlock the full ballot. Miss one and you simply skip that vote.`}
         </p>
       </div>
 
@@ -124,26 +180,26 @@ function ProgressBar({
 function FilmRow({
   film,
   watched,
+  canToggle,
   onToggleWatched,
   open,
   onToggleOpen,
   reviews,
-  membersById,
-  currentMemberId,
+  myUserId,
   onSubmitReview,
 }: {
   film: Film;
   watched: boolean;
+  canToggle: boolean;
   onToggleWatched: () => void;
   open: boolean;
   onToggleOpen: () => void;
-  reviews: Review[];
-  membersById: Record<string, Member>;
-  currentMemberId: string;
-  onSubmitReview: (rating: number, body: string) => void;
+  reviews: RoomReview[];
+  myUserId: string;
+  onSubmitReview: (rating: number, body: string) => Promise<boolean>;
 }) {
-  const mine = reviews.find((r) => r.memberId === currentMemberId);
-  const others = reviews.filter((r) => r.memberId !== currentMemberId);
+  const mine = reviews.find((r) => r.userId === myUserId);
+  const others = reviews.filter((r) => r.userId !== myUserId);
 
   const guildAverage =
     reviews.length > 0
@@ -197,8 +253,9 @@ function FilmRow({
           <button
             type="button"
             onClick={onToggleWatched}
+            disabled={!canToggle}
             aria-pressed={watched}
-            className={`border px-4 py-2 text-xs uppercase tracking-[0.1em] transition-colors ${
+            className={`border px-4 py-2 text-xs uppercase tracking-[0.1em] transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
               watched
                 ? "border-signal bg-signal text-paper"
                 : "border-rule hover:border-ink"
@@ -245,7 +302,7 @@ function FilmRow({
                   <li key={review.id} className="border-l-2 border-rule pl-4">
                     <p className="flex items-baseline gap-3">
                       <span className="text-sm font-medium">
-                        {membersById[review.memberId]?.name ?? "Unknown"}
+                        {review.memberName}
                       </span>
                       <Stars rating={review.rating} />
                     </p>
@@ -285,21 +342,26 @@ function ReviewForm({
   existing,
   onSubmit,
 }: {
-  existing?: Review;
-  onSubmit: (rating: number, body: string) => void;
+  existing?: RoomReview;
+  onSubmit: (rating: number, body: string) => Promise<boolean>;
 }) {
   const [rating, setRating] = useState(existing?.rating ?? 0);
   const [body, setBody] = useState(existing?.body ?? "");
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   return (
     <form
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
-        if (rating === 0 || !body.trim()) return;
-        onSubmit(rating, body.trim());
-        setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
+        if (rating === 0 || !body.trim() || saving) return;
+        setSaving(true);
+        const ok = await onSubmit(rating, body.trim());
+        setSaving(false);
+        if (ok) {
+          setSaved(true);
+          setTimeout(() => setSaved(false), 2000);
+        }
       }}
       className="mt-3"
     >
@@ -336,10 +398,10 @@ function ReviewForm({
       <div className="mt-3 flex items-center gap-4">
         <button
           type="submit"
-          disabled={rating === 0 || !body.trim()}
+          disabled={rating === 0 || !body.trim() || saving}
           className="bg-ink px-5 py-2.5 text-xs uppercase tracking-[0.12em] text-paper transition-colors hover:bg-signal disabled:opacity-30 disabled:hover:bg-ink"
         >
-          {existing ? "Update review" : "Post review"}
+          {saving ? "Saving…" : existing ? "Update review" : "Post review"}
         </button>
         {saved && <span className="text-xs text-signal">Saved.</span>}
       </div>
