@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -87,8 +88,14 @@ export default async function GuildPage({
     },
   ];
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-  const inviteUrl = `${siteUrl}/join/${guild.inviteCode}`;
+  // Build the invite link from the request itself so it always matches the
+  // domain the president is actually on — env-var drift once shipped
+  // localhost links to production.
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+  const proto =
+    h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  const inviteUrl = `${proto}://${host}/join/${guild.inviteCode}`;
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-12">

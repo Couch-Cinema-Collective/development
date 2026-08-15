@@ -5,9 +5,14 @@ import Link from "next/link";
 
 import { createSeason } from "@/app/commissioner/new/actions";
 
-import { DiscordPanel } from "./DiscordPanel";
+import { CommunicationStep } from "./CommunicationStep";
 import { buildPool, selectSlate } from "@/lib/slate";
-import { AWARD_CATALOG, DEFAULT_AWARD_IDS, SEASON_PRESETS } from "@/lib/mock/awards";
+import {
+  AWARD_CATALOG,
+  DEFAULT_AWARD_IDS,
+  MAX_SEASON_FILMS,
+  SEASON_PRESETS,
+} from "@/lib/mock/awards";
 import {
   CATEGORY_FAMILIES,
   SEASON_CATEGORIES,
@@ -20,7 +25,13 @@ import {
   type Film,
 } from "@/lib/types";
 
-const STEPS = ["Identity", "Format", "Awards", "Weighting", "Discord"] as const;
+const STEPS = [
+  "Identity",
+  "Format",
+  "Awards",
+  "Weighting",
+  "Communication",
+] as const;
 
 export function SeasonWizard({
   catalog,
@@ -35,7 +46,11 @@ export function SeasonWizard({
 
   const [guildName, setGuildName] = useState(initialGuildName);
   const [categoryId, setCategoryId] = useState<string | null>(null);
+  /** A season theme of the guild's own invention (design review). */
+  const [customCategory, setCustomCategory] = useState("");
   const [presetId, setPresetId] = useState("standard");
+  const [customFilmCount, setCustomFilmCount] = useState(6);
+  const [customDuration, setCustomDuration] = useState("Two months");
   const [awardIds, setAwardIds] = useState<string[]>(DEFAULT_AWARD_IDS);
   const [customAwards, setCustomAwards] = useState<AwardCategory[]>([]);
   const [customDraft, setCustomDraft] = useState("");
@@ -45,21 +60,26 @@ export function SeasonWizard({
   const [pending, startTransition] = useTransition();
 
   const category = SEASON_CATEGORIES.find((c) => c.id === categoryId) ?? null;
+  // A typed custom theme beats a card selection.
+  const categoryName = customCategory.trim() || category?.name || "";
   const preset = SEASON_PRESETS.find((p) => p.id === presetId) ?? SEASON_PRESETS[0];
+  const filmCount = presetId === "custom" ? customFilmCount : preset.filmCount;
   const totalAwards = awardIds.length + customAwards.length;
 
-  const canAdvance = step === 0 ? Boolean(category && guildName.trim()) : true;
+  const canAdvance =
+    step === 0 ? Boolean(categoryName && guildName.trim()) : true;
 
   function openSeason() {
-    if (!category) return;
+    if (!categoryName) return;
     setError(null);
     startTransition(async () => {
       // On success the action redirects to the guild page; only errors return.
       const result = await createSeason({
         guildId,
         guildName,
-        categoryName: category.name,
+        categoryName,
         presetId,
+        customFilmCount,
         awardIds,
         customAwardNames: customAwards.map((a) => a.name),
         guildWeight,
@@ -78,11 +98,28 @@ export function SeasonWizard({
             guildName={guildName}
             onGuildName={setGuildName}
             categoryId={categoryId}
-            onCategory={setCategoryId}
+            onCategory={(id) => {
+              setCategoryId(id);
+              setCustomCategory("");
+            }}
+            customCategory={customCategory}
+            onCustomCategory={(v) => {
+              setCustomCategory(v);
+              if (v.trim()) setCategoryId(null);
+            }}
           />
         )}
 
-        {step === 1 && <FormatStep presetId={presetId} onPreset={setPresetId} />}
+        {step === 1 && (
+          <FormatStep
+            presetId={presetId}
+            onPreset={setPresetId}
+            customFilmCount={customFilmCount}
+            onCustomFilmCount={setCustomFilmCount}
+            customDuration={customDuration}
+            onCustomDuration={setCustomDuration}
+          />
+        )}
 
         {step === 2 && (
           <AwardsStep
@@ -115,7 +152,7 @@ export function SeasonWizard({
           <WeightingStep
             guildWeight={guildWeight}
             onGuildWeight={setGuildWeight}
-            filmCount={preset.filmCount}
+            filmCount={filmCount}
             catalog={catalog}
           />
         )}
@@ -123,10 +160,13 @@ export function SeasonWizard({
         {step === 4 && (
           <section>
             <StepHeading
-              title="Wire up Discord"
-              blurb="Optional, and skippable. Connect your server so members can jump straight to it and season announcements post themselves."
+              title="Keep the guild posted"
+              blurb="Optional, and skippable. Pick how your guild talks — we recommend wiring up Discord so announcements post themselves, but a group text or an email thread works too."
             />
-            <DiscordPanel variant="compact" />
+            <CommunicationStep
+              guildName={guildName}
+              categoryName={categoryName}
+            />
           </section>
         )}
 
@@ -153,7 +193,7 @@ export function SeasonWizard({
             <button
               type="button"
               onClick={openSeason}
-              disabled={pending || !category}
+              disabled={pending || !categoryName}
               className="bg-signal px-7 py-3.5 text-sm font-medium uppercase tracking-[0.14em] text-paper transition-colors hover:bg-ink disabled:opacity-30"
             >
               {pending ? "Opening…" : "Open the season"}
@@ -228,11 +268,15 @@ function IdentityStep({
   onGuildName,
   categoryId,
   onCategory,
+  customCategory,
+  onCustomCategory,
 }: {
   guildName: string;
   onGuildName: (v: string) => void;
   categoryId: string | null;
   onCategory: (id: string) => void;
+  customCategory: string;
+  onCustomCategory: (v: string) => void;
 }) {
   const [family, setFamily] = useState<CategoryFamily | "All">("All");
   const visible =
@@ -335,6 +379,25 @@ function IdentityStep({
           </Link>
           .
         </p>
+
+        <div className="mt-8 border-t border-rule pt-6">
+          <label className="label-eyebrow block" htmlFor="custom-category">
+            Or invent your own
+          </label>
+          <input
+            id="custom-category"
+            value={customCategory}
+            onChange={(e) => onCustomCategory(e.target.value)}
+            placeholder="Heist Movies, One-Location Thrillers, 1999…"
+            className={`mt-3 w-full max-w-md border-b bg-transparent pb-3 text-xl tracking-tight outline-none placeholder:text-ink-faint focus:border-signal ${
+              customCategory.trim() ? "border-signal" : "border-ink"
+            }`}
+          />
+          <p className="mt-2 text-xs text-ink-faint">
+            Typing here overrides the picks above — the season is whatever you
+            say it is.
+          </p>
+        </div>
       </div>
     </section>
   );
@@ -343,15 +406,25 @@ function IdentityStep({
 function FormatStep({
   presetId,
   onPreset,
+  customFilmCount,
+  onCustomFilmCount,
+  customDuration,
+  onCustomDuration,
 }: {
   presetId: string;
   onPreset: (id: string) => void;
+  customFilmCount: number;
+  onCustomFilmCount: (n: number) => void;
+  customDuration: string;
+  onCustomDuration: (v: string) => void;
 }) {
+  const customSelected = presetId === "custom";
+
   return (
     <section>
       <StepHeading
         title="Set the clock"
-        blurb="How long the season runs and how many films make the slate. Members watch on their own time — missing a film only costs them their vote in that category."
+        blurb="How long the season runs and how many films make the slate. The presets are suggestions — set your own pace if none fit. Members watch on their own time."
       />
 
       <ul className="grid gap-px border border-rule bg-rule">
@@ -385,7 +458,74 @@ function FormatStep({
             </li>
           );
         })}
+
+        <li>
+          <button
+            type="button"
+            onClick={() => onPreset("custom")}
+            className={`flex w-full items-center justify-between gap-6 px-6 py-6 text-left transition-colors ${
+              customSelected ? "bg-ink text-paper" : "bg-paper-raised hover:bg-paper"
+            }`}
+          >
+            <span>
+              <span className="block text-lg uppercase tracking-tight">
+                Set your own pace
+              </span>
+              <span
+                className={`mt-1 block text-xs ${
+                  customSelected ? "text-paper/70" : "text-ink-faint"
+                }`}
+              >
+                Any length, up to {MAX_SEASON_FILMS} films.
+              </span>
+            </span>
+            <span className="shrink-0 text-3xl font-medium tabular-nums">
+              {customSelected ? customFilmCount : "?"}
+            </span>
+          </button>
+        </li>
       </ul>
+
+      {customSelected && (
+        <div className="mt-6 grid gap-6 border border-ink bg-paper-raised p-6 sm:grid-cols-2">
+          <label className="grid gap-2">
+            <span className="label-eyebrow">Films on the slate</span>
+            <input
+              type="number"
+              min={1}
+              max={MAX_SEASON_FILMS}
+              value={customFilmCount}
+              onChange={(e) =>
+                onCustomFilmCount(
+                  Math.max(
+                    1,
+                    Math.min(MAX_SEASON_FILMS, Number(e.target.value) || 1),
+                  ),
+                )
+              }
+              className="border-b border-ink bg-transparent pb-2 text-2xl tabular-nums outline-none focus:border-signal"
+            />
+            <span className="text-xs text-ink-faint">
+              Hard cap: {MAX_SEASON_FILMS}. No guild should be judging more
+              than that.
+            </span>
+          </label>
+
+          <label className="grid gap-2">
+            <span className="label-eyebrow">How long</span>
+            <input
+              value={customDuration}
+              onChange={(e) => onCustomDuration(e.target.value)}
+              placeholder="Two months"
+              className="border-b border-ink bg-transparent pb-2 text-2xl tracking-tight outline-none placeholder:text-ink-faint focus:border-signal"
+            />
+            <span className="text-xs text-ink-faint">
+              In your own words — the deadline pressure is social, not
+              automated.
+            </span>
+          </label>
+        </div>
+      )}
 
       <p className="mt-6 max-w-lg text-xs leading-relaxed text-ink-faint">
         A tie at the slate cutoff expands the season by a film rather than
@@ -505,7 +645,7 @@ function AwardsStep({
 
         {atCap && (
           <p className="mt-4 text-xs text-signal">
-            Fifteen is the ceiling. Switch something off to add another.
+            Twenty is the ceiling. Switch something off to add another.
           </p>
         )}
       </div>
@@ -544,8 +684,26 @@ function WeightingStep({
     <section>
       <StepHeading
         title="Weight the slate"
-        blurb="How much the guild's own conviction counts against outside critical opinion. Most presidents leave this alone."
+        blurb="Everyone nominates, and the top films become the season. This slider decides what counts as the top."
       />
+
+      {/* Plain-language explainer, above the fold and above the slider. */}
+      <div className="mb-6 max-w-lg space-y-3 text-sm leading-relaxed text-ink-soft">
+        <p>
+          When nominations lock, films are ranked to pick the slate. Two
+          things feed that ranking: <strong>how many points your guild put
+          on a film</strong>, and <strong>what critics scored it</strong>{" "}
+          (TMDB, IMDb, Rotten Tomatoes).
+        </p>
+        <p>
+          The default is 80/20 — the guild&apos;s conviction does most of the
+          talking, with critics as a nudge. That nudge helps when the guild
+          doesn&apos;t know a category deep: the beloved-but-obscure picks
+          with huge critic scores get a fair shot at the slate. Slide to
+          100% and critics are ignored entirely; slide down and they matter
+          more.
+        </p>
+      </div>
 
       <div className="border border-ink bg-paper-raised p-6">
         <div className="flex items-baseline justify-between">

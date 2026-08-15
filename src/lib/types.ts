@@ -153,4 +153,4 @@ export interface AwardResult {
 
 export const POINTS_PER_MEMBER = 5;
 export const MAX_GUILD_MEMBERS = 50;
-export const MAX_AWARD_CATEGORIES = 15;
+export const MAX_AWARD_CATEGORIES = 20;

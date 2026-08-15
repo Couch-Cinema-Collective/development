@@ -17,12 +17,20 @@ export async function AuthStatus() {
 
   if (!user) {
     return (
-      <Link
-        href="/login"
-        className="label-eyebrow border border-ink px-3 py-1.5 text-ink transition-colors hover:bg-ink hover:text-paper"
-      >
-        Sign In
-      </Link>
+      <div className="flex items-center gap-3">
+        <Link
+          href="/signup"
+          className="label-eyebrow bg-signal px-3 py-1.5 text-paper transition-colors hover:bg-ink"
+        >
+          Start a Guild
+        </Link>
+        <Link
+          href="/login"
+          className="label-eyebrow border border-ink px-3 py-1.5 text-ink transition-colors hover:bg-ink hover:text-paper"
+        >
+          Sign In
+        </Link>
+      </div>
     );
   }
 
@@ -35,10 +43,11 @@ export async function AuthStatus() {
     <div className="flex items-center gap-4">
       <Link
         href="/welcome"
-        className="label-eyebrow text-ink transition-colors hover:text-signal"
+        className="label-eyebrow border border-ink px-3 py-1.5 text-ink transition-colors hover:bg-ink hover:text-paper"
       >
-        {name}
+        My Guilds
       </Link>
+      <span className="label-eyebrow text-ink">{name}</span>
       <form action={signOut}>
         <button
           type="submit"

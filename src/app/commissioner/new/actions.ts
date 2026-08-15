@@ -3,16 +3,22 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { AWARD_CATALOG, SEASON_PRESETS } from "@/lib/mock/awards";
+import {
+  AWARD_CATALOG,
+  MAX_SEASON_FILMS,
+  SEASON_PRESETS,
+} from "@/lib/mock/awards";
 import { MAX_AWARD_CATEGORIES } from "@/lib/types";
 import { createClient } from "@/lib/supabase/server";
 
 export interface CreateSeasonInput {
   guildId: string;
-  /** The wizard lets the commissioner rename the guild in passing. */
+  /** The wizard lets the president rename the guild in passing. */
   guildName: string;
   categoryName: string;
+  /** A SEASON_PRESETS id, or "custom" with customFilmCount. */
   presetId: string;
+  customFilmCount?: number;
   awardIds: string[];
   customAwardNames: string[];
   /** 0–100, the guild-conviction slider. */
@@ -22,8 +28,9 @@ export interface CreateSeasonInput {
 /** Days members get to nominate, scaled to the season's tempo. */
 const NOMINATION_WINDOW_DAYS: Record<string, number> = {
   standard: 7,
-  year: 14,
-  sprint: 3,
+  intense: 5,
+  marathon: 7,
+  custom: 7,
 };
 
 export async function createSeason(
@@ -46,7 +53,13 @@ export async function createSeason(
   }
 
   const preset = SEASON_PRESETS.find((p) => p.id === input.presetId);
-  if (!preset) return { error: "Pick a season format." };
+  if (!preset && input.presetId !== "custom") {
+    return { error: "Pick a season format." };
+  }
+  const filmCount = Math.max(
+    1,
+    Math.min(MAX_SEASON_FILMS, preset?.filmCount ?? input.customFilmCount ?? 6),
+  );
 
   const categoryName = input.categoryName.trim();
   if (!categoryName) return { error: "Pick a season category." };
@@ -88,7 +101,7 @@ export async function createSeason(
     .maybeSingle();
   const number = (latest?.number ?? 0) + 1;
 
-  const windowDays = NOMINATION_WINDOW_DAYS[preset.id] ?? 7;
+  const windowDays = NOMINATION_WINDOW_DAYS[input.presetId] ?? 7;
   const deadline = new Date(
     Date.now() + windowDays * 24 * 60 * 60 * 1000,
   ).toISOString();
@@ -101,7 +114,7 @@ export async function createSeason(
       title: categoryName,
       category: categoryName,
       state: "NOMINATING",
-      film_count: preset.filmCount,
+      film_count: filmCount,
       nomination_deadline: deadline,
       w_guild: guildWeight / 100,
       w_critic: (100 - guildWeight) / 100,

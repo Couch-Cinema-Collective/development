@@ -31,7 +31,7 @@ const PUBLIC_NAV = [
 ];
 
 const MEMBER_NAV = [
-  { href: "/welcome", label: "Your Guild" },
+  { href: "/welcome", label: "My Guilds" },
   { href: "/profile", label: "Profile" },
 ];
 
