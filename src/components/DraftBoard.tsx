@@ -221,15 +221,19 @@ export function DraftBoard({
             <p className="mt-2 text-xs text-ink-faint">
               {searching
                 ? "Searching…"
-                : live
+                : results
                   ? "Live results from TMDB."
-                  : `Showing the ${categoryName} fixture catalog — add a TMDB key for live search.`}
+                  : live
+                    ? `A starting shelf of ${categoryName} — search for anything beyond it.`
+                    : `Showing the fixture catalog — add a TMDB key for live search.`}
             </p>
           </div>
 
           {displayed.length === 0 && !searching ? (
             <p className="mt-16 text-sm text-ink-soft">
-              No films matched “{query}”.
+              {query.trim()
+                ? `No films matched “${query}”.`
+                : "Search above to pull films from TMDB."}
             </p>
           ) : (
             <ul className="mt-10 grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 xl:grid-cols-4">
