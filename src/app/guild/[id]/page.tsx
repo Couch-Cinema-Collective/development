@@ -153,7 +153,28 @@ export default async function GuildPage({
         </aside>
 
         <div className="min-w-0">
-          {president && (
+          {/* Setup before invites: the link stays back until a season exists. */}
+          {president && seasons.length === 0 && (
+            <section className="border border-ink bg-paper-raised p-6">
+              <p className="label-eyebrow text-signal">First things first</p>
+              <h2 className="mt-2 text-2xl font-medium uppercase tracking-tight">
+                Set up your season
+              </h2>
+              <p className="mt-3 max-w-lg text-sm leading-relaxed text-ink-soft">
+                Pick the category, the awards, and the pace before anyone
+                joins — your invite link unlocks here the moment the season
+                opens, so members arrive with something to nominate.
+              </p>
+              <Link
+                href={`/commissioner/new?guild=${guild.id}`}
+                className="mt-6 inline-block bg-signal px-7 py-3.5 text-sm font-medium uppercase tracking-[0.14em] text-paper transition-colors hover:bg-ink"
+              >
+                Set Up the Season
+              </Link>
+            </section>
+          )}
+
+          {president && seasons.length > 0 && (
             <section className="border border-rule bg-paper-raised p-6">
               <h2 className="label-eyebrow">Invite your members</h2>
               <div className="mt-4 flex flex-wrap items-center gap-4">
@@ -229,14 +250,20 @@ export default async function GuildPage({
               </div>
             ) : president ? (
               <p className="mt-4 max-w-xl text-sm leading-relaxed text-ink-soft">
-                No season running. Once your members are in,{" "}
-                <Link
-                  href={`/commissioner/new?guild=${guild.id}`}
-                  className="underline hover:text-signal"
-                >
-                  set up the season
-                </Link>{" "}
-                — pick the category, the awards, and open nominations.
+                {seasons.length === 0 ? (
+                  "Your first season is waiting — set it up above."
+                ) : (
+                  <>
+                    No season running.{" "}
+                    <Link
+                      href={`/commissioner/new?guild=${guild.id}`}
+                      className="underline hover:text-signal"
+                    >
+                      Open the next one
+                    </Link>{" "}
+                    — pick the category, the awards, and open nominations.
+                  </>
+                )}
               </p>
             ) : (
               <p className="mt-4 max-w-xl text-sm leading-relaxed text-ink-soft">
