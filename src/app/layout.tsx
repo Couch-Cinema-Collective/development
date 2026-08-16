@@ -14,10 +14,28 @@ const jost = Jost({
   display: "swap",
 });
 
+const SITE_URL = "https://www.couchcinemacollective.com";
+const DESCRIPTION =
+  "Guilds of film watchers nominate, watch, and award a season of cinema together.";
+
 export const metadata: Metadata = {
+  // Required for og:image to resolve to an absolute URL — relative ones are
+  // ignored by every scraper.
+  metadataBase: new URL(SITE_URL),
   title: "Couch Cinema Collective",
-  description:
-    "Guilds of film watchers nominate, watch, and award a season of cinema together.",
+  description: DESCRIPTION,
+  openGraph: {
+    title: "Couch Cinema Collective",
+    description: DESCRIPTION,
+    url: SITE_URL,
+    siteName: "Couch Cinema Collective",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Couch Cinema Collective",
+    description: DESCRIPTION,
+  },
 };
 
 /**
