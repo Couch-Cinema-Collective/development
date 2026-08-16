@@ -140,6 +140,22 @@ export interface WatchRecord {
 /** One member's ballot: award id → the film they voted for. */
 export type Ballot = Record<string, number>;
 
+/** A billed performer, for the acting categories. */
+export interface CastMember {
+  id: number;
+  name: string;
+  character: string;
+  profilePath: string | null;
+}
+
+/**
+ * Acting awards are won by a person rather than a film, so their ballot rows
+ * carry a performer too. Ensemble is excluded — it belongs to the whole cast.
+ */
+export function needsPerformer(award: AwardCategory): boolean {
+  return award.tier === "performance" && award.id !== "ensemble";
+}
+
 /** A decided award, once voting closes. */
 export interface AwardResult {
   awardId: string;

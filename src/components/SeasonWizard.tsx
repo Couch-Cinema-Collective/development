@@ -164,6 +164,7 @@ export function SeasonWizard({
               blurb="Optional, and skippable. Pick how your guild talks — we recommend wiring up Discord so announcements post themselves, but a group text or an email thread works too."
             />
             <CommunicationStep
+              guildId={guildId}
               guildName={guildName}
               categoryName={categoryName}
             />

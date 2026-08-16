@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { Film } from "./types";
+import type { CastMember, Film } from "./types";
 import { FILMS_BY_ID, FIXTURE_FILMS, searchFixtures } from "./mock/films";
 
 const BASE = "https://api.themoviedb.org/3";
@@ -49,7 +49,15 @@ interface TmdbMovie {
   vote_average: number;
   overview: string;
   imdb_id?: string | null;
-  credits?: { crew?: { job: string; name: string }[] };
+  credits?: {
+    crew?: { job: string; name: string }[];
+    cast?: {
+      id: number;
+      name: string;
+      character?: string;
+      profile_path?: string | null;
+    }[];
+  };
 }
 
 function normalize(movie: TmdbMovie): Film {
@@ -105,6 +113,33 @@ export async function findFilmByTitle(title: string): Promise<Film | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * Top-billed cast for the acting categories. TMDB returns `cast` in billing
+ * order, so the first few are the leads without any ranking of our own.
+ */
+export async function getTopCast(id: number, limit = 5): Promise<CastMember[]> {
+  if (!isLive()) return [];
+
+  try {
+    const movie = await tmdb<TmdbMovie>(`/movie/${id}`, {
+      append_to_response: "credits",
+    });
+
+    return (movie.credits?.cast ?? []).slice(0, limit).map((c) => ({
+      id: c.id,
+      name: c.name,
+      character: c.character ?? "",
+      profilePath: c.profile_path ?? null,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export function profileUrl(path: string | null, size: "w185" = "w185"): string | null {
+  return path ? `https://image.tmdb.org/t/p/${size}${path}` : null;
 }
 
 export async function getFilm(id: number): Promise<Film | null> {

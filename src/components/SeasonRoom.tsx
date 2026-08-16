@@ -5,6 +5,7 @@ import { useState } from "react";
 import { FilmPoster } from "./FilmPoster";
 import { DiscordPanel } from "./DiscordPanel";
 import { saveReview, setWatched } from "@/app/season/actions";
+import { toggleReviewVote } from "@/app/season/review-actions";
 import type { Film } from "@/lib/types";
 
 /** A review as the room renders it — name resolved, ids from the DB. */
@@ -15,6 +16,9 @@ export interface RoomReview {
   memberName: string;
   rating: number;
   body: string;
+  /** Derived from review_votes, never stored. */
+  upvotes: number;
+  upvotedByMe: boolean;
 }
 
 interface SeasonRoomProps {
@@ -80,9 +84,38 @@ export function SeasonRoom({
         memberName: "You",
         rating,
         body,
+        upvotes: 0,
+        upvotedByMe: false,
       },
     ]);
     return true;
+  };
+
+  /**
+   * Optimistic upvote — the count moves immediately and rolls back if the
+   * server rejects it (you cannot upvote your own review).
+   */
+  const upvote = async (reviewId: string, next: boolean) => {
+    setError(null);
+    setAllReviews((prev) =>
+      prev.map((r) =>
+        r.id === reviewId
+          ? { ...r, upvotedByMe: next, upvotes: r.upvotes + (next ? 1 : -1) }
+          : r,
+      ),
+    );
+
+    const result = await toggleReviewVote(reviewId, next);
+    if (result.error) {
+      setError(result.error);
+      setAllReviews((prev) =>
+        prev.map((r) =>
+          r.id === reviewId
+            ? { ...r, upvotedByMe: !next, upvotes: r.upvotes + (next ? -1 : 1) }
+            : r,
+        ),
+      );
+    }
   };
 
   const eligible = watched.length === slate.length;
@@ -118,6 +151,7 @@ export function SeasonRoom({
                 setOpenFilmId((prev) => (prev === film.id ? null : film.id))
               }
               reviews={allReviews.filter((r) => r.tmdbId === film.id)}
+              onUpvote={upvote}
               myUserId={myUserId}
               onSubmitReview={(rating, body) => addReview(film.id, rating, body)}
             />
@@ -187,6 +221,7 @@ function FilmRow({
   reviews,
   myUserId,
   onSubmitReview,
+  onUpvote,
 }: {
   film: Film;
   watched: boolean;
@@ -197,6 +232,7 @@ function FilmRow({
   reviews: RoomReview[];
   myUserId: string;
   onSubmitReview: (rating: number, body: string) => Promise<boolean>;
+  onUpvote: (reviewId: string, next: boolean) => void;
 }) {
   const mine = reviews.find((r) => r.userId === myUserId);
   const others = reviews.filter((r) => r.userId !== myUserId);
@@ -298,25 +334,62 @@ function FilmRow({
               </p>
             ) : (
               <ul className="mt-3 space-y-5">
-                {others.map((review) => (
-                  <li key={review.id} className="border-l-2 border-rule pl-4">
-                    <p className="flex items-baseline gap-3">
-                      <span className="text-sm font-medium">
-                        {review.memberName}
-                      </span>
-                      <Stars rating={review.rating} />
-                    </p>
-                    <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
-                      {review.body}
-                    </p>
-                  </li>
-                ))}
+                {/* Best-received write-ups rise; ties keep their original order. */}
+                {[...others]
+                  .sort((a, b) => b.upvotes - a.upvotes)
+                  .map((review) => (
+                    <li key={review.id} className="border-l-2 border-rule pl-4">
+                      <p className="flex items-baseline gap-3">
+                        <span className="text-sm font-medium">
+                          {review.memberName}
+                        </span>
+                        <Stars rating={review.rating} />
+                      </p>
+                      <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
+                        {review.body}
+                      </p>
+                      <UpvoteButton
+                        review={review}
+                        onUpvote={() =>
+                          onUpvote(review.id, !review.upvotedByMe)
+                        }
+                      />
+                    </li>
+                  ))}
               </ul>
             )}
           </div>
         </div>
       )}
     </li>
+  );
+}
+
+function UpvoteButton({
+  review,
+  onUpvote,
+}: {
+  review: RoomReview;
+  onUpvote: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onUpvote}
+      aria-pressed={review.upvotedByMe}
+      aria-label={`${review.upvotedByMe ? "Remove your upvote from" : "Upvote"} ${review.memberName}'s review`}
+      className={`mt-3 inline-flex items-center gap-2 border px-3 py-1.5 text-xs transition-colors ${
+        review.upvotedByMe
+          ? "border-signal bg-signal text-paper"
+          : "border-rule text-ink-faint hover:border-ink hover:text-ink"
+      }`}
+    >
+      <span aria-hidden>▲</span>
+      <span className="tabular-nums">{review.upvotes}</span>
+      <span className="uppercase tracking-[0.1em]">
+        {review.upvotes === 1 ? "upvote" : "upvotes"}
+      </span>
+    </button>
   );
 }
 

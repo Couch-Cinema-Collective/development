@@ -13,6 +13,8 @@ export async function castVote(input: {
   seasonId: string;
   awardId: string;
   tmdbId: number;
+  /** Acting categories are won by a person; every other award leaves this off. */
+  person?: { id: number; name: string; character: string; profilePath: string | null };
 }): Promise<VoteResult> {
   const supabase = await createClient();
   const {
@@ -53,6 +55,8 @@ export async function castVote(input: {
       user_id: user.id,
       award_id: input.awardId,
       tmdb_id: input.tmdbId,
+      person_id: input.person?.id ?? null,
+      person: input.person ?? null,
     },
     { onConflict: "season_id,user_id,award_id" },
   );
