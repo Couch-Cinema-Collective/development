@@ -10,10 +10,12 @@ Parked deliberately — raised in review and deferred, not forgotten.
   weight for seasons completed / streaks (longevity), extra weight when a
   member stakes all points on one film. Retention mechanics; needs its own
   design pass before any of it touches the ballot math.
-- **Per-guild Discord config** — server ID, invite, and webhook are currently
-  site-wide env vars. Real multi-guild support means storing them per guild
-  (columns on `guilds`, president-editable) and the announce route reading
-  the season's guild. The wizard's Communication step already teaches setup.
+- **Per-guild Discord config** — *half done as of `5f9a4db`.* Storage and the
+  president-facing UI have landed: `guilds.discord_server_id` /
+  `discord_invite_url` / `discord_webhook_url`, editable from the wizard's
+  Communication step. **Still outstanding:** `lib/discord.ts` posts to the
+  site-wide `DISCORD_WEBHOOK_URL` env var, so the announce route needs to read
+  the season's guild instead.
 - **Managed text/email sending** — the app sending texts itself means an LLC
   and a texting vendor (Twilio et al). For now: prewritten templates via
   sms:/mailto: links. Same story for email digests.
