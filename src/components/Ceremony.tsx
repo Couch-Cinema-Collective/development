@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 
 import { FilmPoster } from "./FilmPoster";
+import { isNative, shareImage } from "@/lib/native";
 import type { AwardResult, Film, Member } from "@/lib/types";
 
 interface CeremonyProps {
@@ -289,13 +290,17 @@ function SharePanel({
     await draw();
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const link = document.createElement("a");
-    link.download = `${result.awardId}-${film?.title ?? "award"}.png`.replace(
+
+    const filename = `${result.awardId}-${film?.title ?? "award"}.png`.replace(
       /\s+/g,
       "-",
     );
-    link.href = canvas.toDataURL("image/png");
-    link.click();
+    // On device this opens the iOS share sheet; in a browser it downloads.
+    await shareImage(
+      canvas.toDataURL("image/png"),
+      filename,
+      `${result.awardName} — ${film?.title ?? ""}`,
+    );
   };
 
   return (
@@ -321,7 +326,7 @@ function SharePanel({
 
         <p className="mt-3 text-xs text-ink-faint">
           1080 × 1080, sized for Instagram and messaging. Press render, then
-          download.
+          {isNative() ? "share" : "download"}.
         </p>
 
         <div className="mt-5 flex flex-wrap items-center gap-3">
@@ -349,7 +354,7 @@ function SharePanel({
             onClick={download}
             className="bg-signal px-4 py-2.5 text-xs uppercase tracking-[0.12em] text-paper transition-colors hover:bg-ink"
           >
-            Download
+            {isNative() ? "Share" : "Download"}
           </button>
         </div>
       </div>
