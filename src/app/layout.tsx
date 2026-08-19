@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import "./globals.css";
 import { AuthStatus } from "@/components/AuthStatus";
+import { SiteNav } from "@/components/SiteNav";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 
@@ -68,7 +69,7 @@ export default async function RootLayout({
   return (
     <html lang="en" className={jost.variable}>
       <body className="min-h-screen antialiased">
-        <header className="border-b border-rule bg-paper-raised">
+        <header className="relative border-b border-rule bg-paper-raised">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-8 px-6 py-4">
             <Link href="/" className="shrink-0">
               <Image
@@ -81,18 +82,7 @@ export default async function RootLayout({
               />
             </Link>
 
-            <nav className="flex items-center gap-7">
-              {nav.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="label-eyebrow transition-colors hover:text-ink"
-                >
-                  {item.label}
-                </Link>
-              ))}
-              <AuthStatus />
-            </nav>
+            <SiteNav items={nav} authSlot={<AuthStatus />} />
           </div>
         </header>
 
