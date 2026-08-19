@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Couch Cinema Collective</title>
+<style>
+  :root { color-scheme: light; }
+  body {
+    margin: 0; min-height: 100dvh;
+    display: grid; place-items: center;
+    padding: 2rem env(safe-area-inset-right) 2rem env(safe-area-inset-left);
+    background: #f7f5f0; color: #0b0b0b;
+    font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+    text-align: center;
+  }
+  img { width: 220px; height: auto; }
+  h1 {
+    margin: 2.5rem 0 0; font-size: 1.5rem; font-weight: 500;
+    text-transform: uppercase; letter-spacing: -0.01em;
+  }
+  p { margin: 0.75rem auto 0; max-width: 22rem; font-size: 0.875rem; line-height: 1.6; color: #3d3d3d; }
+  button {
+    margin-top: 2rem; padding: 0.9rem 1.75rem; border: 0;
+    background: #0b0b0b; color: #f7f5f0;
+    font: inherit; font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase;
+  }
+  button:active { background: #e62b24; }
+</style>
+</head>
+<body>
+  <main>
+    <img src="logo.png" alt="Couch Cinema Collective" />
+    <h1>No connection</h1>
+    <p>Couch Cinema needs the network to reach your guild. Check your signal and try again.</p>
+    <button onclick="location.reload()">Retry</button>
+  </main>
+</body>
+</html>

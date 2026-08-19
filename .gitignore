@@ -6,3 +6,12 @@ out/
 .vercel
 .env*
 !.env.example
+
+# Native (Capacitor / Xcode) build artifacts. The ios/ project itself is
+# committed; these are generated per-machine.
+ios/App/build/
+ios/App/Pods/
+ios/App/App/public/
+ios/DerivedData/
+*.xcuserstate
+xcuserdata/
