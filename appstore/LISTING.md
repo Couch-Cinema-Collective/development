@@ -15,69 +15,84 @@ Couch Cinema Collective
 ## Subtitle (30 max)
 
 ```
-A film society with awards
+Film festival with friends
 ```
 *26 characters.*
 
 ## Promotional text (170 max — editable without a new build)
 
 ```
-Nominate the films. Watch on your own time. Hand out the awards yourselves.
-A season of cinema, run with your friends.
+Establish a guild. Premiere your own festival. Find out which of you actually
+has the taste.
 ```
 
 ## Keywords (100 max, comma-separated, no spaces after commas)
 
 ```
-film,movie,club,cinema,awards,voting,watchlist,oscars,society,guild,nominate,ballot,letterboxd
+film,movie,club,cinema,awards,voting,watchlist,oscars,guild,festival,nominate,review,critic,curator
 ```
-*93 characters. Do not include "Couch Cinema" — the name is already indexed.*
+*97 characters. Do not include "Couch Cinema" — the name is already indexed.*
 
 ## Description (4000 max)
 
 ```
-Couch Cinema Collective turns watching films with your friends into a season
+Couch Cinema Collective turns watching films with your friends into a festival
 with stakes.
 
-Your guild nominates a slate of films, everyone watches on their own time, and
-it ends the way it should — with an awards ceremony you vote on yourselves.
+Your guild programmes a lineup, watches it one film at a time on a shared
+schedule, and finishes the way it should — with an awards ceremony you vote on
+yourselves.
 
-HOW A SEASON WORKS
+TWO CHAIRS
 
-Nominate. Every member gets five nomination points to spend however they like.
-Spread them across five films, or stake all five on one you're certain about.
-The films with the most points make the slate.
+Curator. You put up exactly one film, and you defend it. Think producer rather
+than critic: you stake your name on a pick, and if it takes Best of the Fest
+you have won the festival. A guild seats up to twelve curators, and the
+lineup is simply what all of you chose.
 
-Watch. Six films over three months is the recommended shape, but your guild
-president sets the pace. No deadlines to fall behind on — watch when you can.
-Mark films off as you go, rate them, and write them up. See how your guild's
-average compares to the critics.
+Critic. You are the voting body. Watch every film, write two hundred
+characters on it, and spend three upvotes on the reviews that earned them.
+Room for fifty a guild. Every curator is a critic too — curating is the extra
+job, not the alternative.
 
-Vote. When the season closes, the ballot opens. One pick per award, following
-the Oscars — craft categories first, Best Picture last. Finish the slate to
-unlock your vote.
+HOW A FESTIVAL RUNS
 
-The ceremony. Results stay sealed until your president publishes them, and
-they cannot be edited. Awards are revealed one at a time, and every member who
-nominated a winning film is credited with that award.
+One film at a time, on a calendar everyone can predict. Each film screens for
+about a fortnight, spanning two weekends, and you write it up while you watch.
+Reviews go up anonymously, and from Monday to Wednesday the guild votes on
+them — you upvote the writing, not the writer, because nobody knows who wrote
+what until voting closes. Then the next film opens on Thursday morning.
 
-WHAT MAKES IT DIFFERENT
+Miss a window and you miss that round. That is the whole eligibility system.
 
-Recognition comes from what you nominated, not from points we made up. There
-is no invented currency and no leaderboard — just the films you backed and the
-awards they won, kept on your profile season after season.
+TWO THINGS TO WIN
+
+Best of the Fest is the only award that scores. It settles the festival, and
+it belongs to the curator who put the winning film up. Every other award —
+Best Director, Best Score, or anything your guild invents — is honorary: a
+real trophy that counts for nothing, which is the fun of it.
+
+Voice of the People goes to whoever earned the most upvotes across the whole
+festival. Curators compete for it alongside everyone else, because the writing
+stands on its own.
+
+Both go on your profile permanently, festival after festival.
 
 THE FILM COLLECTION
 
-Sixty-five categories to build a season from — Spaghetti Westerns, Body
-Horror, French New Wave, Korean Cinema, the Coen Brothers — each with a plain
-definition and four films that demonstrate it. Not a ranking. A starting
-point, and a decent way to find your next watch even between seasons.
+More than a hundred themes to build a festival from — Italian Neorealism, Body
+Horror, Hong Kong Action, the Coen Brothers, Pre-Code Hollywood — each with a
+plain definition and four films that demonstrate it. Not a ranking. A starting
+point, and a decent way to find your next watch between festivals.
 
 BUILT FOR SMALL GROUPS
 
-Guilds cap at fifty members, deliberately. Beyond that, popular films get
-nominated by so many people that individual picks stop mattering.
+Guilds are private and invite-only. Curator seats are deliberately scarce, so
+every pick in the lineup belongs to someone who has to answer for it.
+
+Couch Cinema Collective is free, with no purchases and no subscriptions. It
+does not stream or play films — you watch through whatever services you
+already use.
 
 Film data provided by TMDB.
 ```
@@ -129,34 +144,47 @@ never anything about a user.
 
 ## Review notes (the "Notes" field — read by the reviewer)
 
+The full answer to Apple's seven questions lives in `appstore/REVIEW-NOTES.md`
+— paste sections 3 through 7 of that file into the Notes field, plus the demo
+credentials below.
+
 ```
-Couch Cinema Collective is a private film club app. Reviewers will need an
-account to see past the landing page.
+Demo account (already a member of a guild with a festival in progress):
+  Email:    appreview@couchcinemacollective.com
+  Password: ReviewDemo!2026
 
-Demo account:
-  Email:    [FILL IN]
-  Password: [FILL IN]
+President account, for the organiser-only controls:
+  Email:    demo.president@couchcinemacollective.com
+  Password: ReviewDemo!2026
+```
 
-This account is already a member of a guild with a season in progress, so the
-nomination draft, season room, ballot, and ceremony are all reachable.
+Create both with `node scripts/seed-review-demo.mjs`, which also seeds the
+guild, the festival, the lineup and a closed film with a revealed review
+thread. Without it a reviewer signs in to an empty account and can see none of
+the core features — the most likely reason the first submission was rejected.
 
 Sign in with Apple is offered alongside Google, per guideline 4.8. Account
 deletion is available in-app under Profile → Danger Zone, per 5.1.1(v).
 
-Push notifications are used only for season events within a member's own
-guild — nominations closing, voting opening, and results being published.
-```
+Push notifications are used only for festival events within a member's own
+guild — a film opening, a deadline approaching, results being published.
 
 ## Before submitting — do not skip
 
-1. **Create the demo account** and fill it into the review notes above. An app
-   that hides everything behind a login and ships without credentials is a
-   near-certain rejection.
-2. Seed that account's guild with a season far enough along that a reviewer
-   can see the draft, ballot, and ceremony.
-3. Confirm push notifications actually deliver on a physical device.
-
----
+1. **Run `node scripts/seed-review-demo.mjs`** and confirm you can sign in as
+   the demo account on a real device. An app that hides everything behind a
+   login and ships without working credentials is a near-certain rejection,
+   and appears to be what happened the first time.
+2. **Record the screen capture** described in `REVIEW-NOTES.md` §1, on a
+   physical device running current iOS. Not the Simulator.
+3. **Paste the updated description above** — the old copy described the
+   five-point season model and no longer matches the app. A description that
+   does not match the app is its own rejection under Guideline 2.3.
+4. **Fill in the tested-devices list** in `REVIEW-NOTES.md` §2.
+5. Confirm push notifications actually deliver on a physical device.
+6. Read the Guideline 1.2 note at the end of `REVIEW-NOTES.md`. The app has
+   user-generated reviews but no reporting or blocking mechanism, which is the
+   most likely cause of a second rejection.
 
 ## SKU
 
