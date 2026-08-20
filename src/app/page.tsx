@@ -34,14 +34,15 @@ export default async function LandingPage() {
     <main>
       <section className="pattern-signal">
         <div className="mx-auto max-w-7xl px-6 py-24 text-paper">
-          <p className="label-eyebrow text-paper/70">Couch Cinema Collective</p>
+          <p className="text-2xl font-medium uppercase tracking-[0.08em] text-paper sm:text-3xl">
+            Couch Cinema Collective
+          </p>
           <h1 className="mt-4 max-w-3xl text-balance text-7xl font-medium uppercase leading-[0.92] tracking-tight">
-            Establish a guild. Premiere your own festival.
+            Film Festival with your Friends
           </h1>
           <p className="mt-6 max-w-md text-paper/85">
-            Your guild programmes a festival, screens it one film at a time, and
-            settles it the honest way — with a ceremony. Then you find out which
-            of you actually has the taste.
+            Establish a guild. Premiere your own festival. Compete with your
+            friends for who has the best taste in cinema. All from your couch.
           </p>
 
           <div className="mt-10 flex flex-wrap gap-4">
