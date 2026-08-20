@@ -113,7 +113,7 @@ Answer **No** to tracking. There are no analytics, ad SDKs, or third-party
 trackers, and nothing is shared with data brokers.
 
 Third parties receiving data: **Supabase** (hosting the account and guild
-data) and **Vercel** (server logs). TMDB and OMDb receive film queries only —
+data) and **Vercel** (server logs). TMDB receives film queries only —
 never anything about a user.
 
 ## Review notes (the "Notes" field — read by the reviewer)

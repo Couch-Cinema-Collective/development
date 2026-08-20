@@ -20,16 +20,16 @@ export interface Film {
   posterPath: string | null;
   director: string;
   runtime: number;
-  /** TMDB vote_average, 0–10. Always present; OMDb scores layer on top. */
+  /** TMDB vote_average, 0–10. The critic term in the slate algorithm. */
   voteAverage: number;
   overview: string;
-  /** Cross-reference for OMDb lookups. */
+  /** Cross-reference for any external score provider. */
   imdbId?: string | null;
-  /** Populated at slate lock from OMDb, which is licensed non-commercial. */
+  /** Populated by an external score provider, if one is configured. */
   externalScores?: ExternalScores;
 }
 
-/** PLAN.md §3.2 — kept optional so OMDb can be detached wholesale. */
+/** Optional: no external provider is configured (see lib/scores.ts). */
 export interface ExternalScores {
   imdb?: number;
   rottenTomatoes?: number;

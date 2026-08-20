@@ -18,10 +18,19 @@ export default function PrivacyPage() {
         <h1 className="mt-3 text-5xl font-medium uppercase leading-none tracking-tight">
           Privacy Policy
         </h1>
-        <p className="mt-4 text-sm text-ink-faint">Last updated 18 August 2026</p>
+        <p className="mt-4 text-sm text-ink-faint">Last updated 19 August 2026</p>
       </header>
 
       <div className="mt-10 space-y-10 text-sm leading-relaxed text-ink-soft">
+        <Section title="Who we are">
+          <p>
+            Couch Cinema Collective is operated by{" "}
+            <strong className="text-ink">ConcertBuddy.ai LLC</strong>, which is
+            the data controller for everything described below. Where this
+            policy says &ldquo;we&rdquo;, it means that company.
+          </p>
+        </Section>
+
         <Section title="The short version">
           <p>
             We store the least we can get away with: who you are, which guilds
@@ -57,8 +66,8 @@ export default function PrivacyPage() {
               row-level security, so members only ever read their own guilds.
             </Item>
             <Item label="Vercel">Hosts the site and keeps request logs.</Item>
-            <Item label="TMDB and OMDb">
-              Provide film metadata and critic scores. We request film
+            <Item label="TMDB">
+              Provides film metadata, artwork and ratings. We request film
               information from them; we never send them anything about you.
             </Item>
             <Item label="Discord">
