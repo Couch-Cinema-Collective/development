@@ -31,6 +31,7 @@ function memberAction(
   state: string | undefined,
   guildId: string,
   curator: boolean,
+  awaitingOpen = false,
 ): { href: string; label: string; note: string } | null {
   switch (state) {
     case "NOMINATING":
@@ -50,7 +51,9 @@ function memberAction(
       return {
         href: `/dashboard?guild=${guildId}`,
         label: "Go to your dashboard",
-        note: "Watch, review, and vote — the clock is running.",
+        note: awaitingOpen
+          ? "The lineup is drawn. Nothing is screening until your president opens the festival."
+          : "Watch, review, and vote — the clock is running.",
       };
     case "AWARDS_VOTING":
       return {
@@ -116,6 +119,21 @@ export default async function GuildPage({
         ])
       : [{ data: null }, { data: null }];
 
+  // Has any film actually started? A festival can sit in SCREENING with its
+  // whole schedule still in the future, in which case it is not open at all.
+  const { data: startedRows } =
+    current && ["LINEUP_SET", "SCREENING"].includes(current.state)
+      ? await supabase
+          .from("lineup_films")
+          .select("tmdb_id, viewing_starts_at")
+          .eq("festival_id", current.id)
+      : { data: null };
+  const drawn = (startedRows ?? []).length;
+  const started = (startedRows ?? []).filter(
+    (f) => f.viewing_starts_at && new Date(f.viewing_starts_at) <= new Date(),
+  ).length;
+  const awaitingOpen = drawn > 0 && started === 0;
+
   const lockedIn = Boolean(myNomination?.locked);
   const counts = countRow as
     | { submitted: number; picked: number; expected: number }
@@ -123,7 +141,7 @@ export default async function GuildPage({
 
   const action = lockedIn
     ? null
-    : memberAction(current?.state, guild.id, curator);
+    : memberAction(current?.state, guild.id, curator, awaitingOpen);
   const seatsLeft = guild.maxCurators - guild.curators.length;
 
   // Invite links always carry the canonical domain (design decision) — a
@@ -154,6 +172,7 @@ export default async function GuildPage({
             festivalId={current.id}
             state={current.state}
             deadline={current.nominationDeadline}
+            awaitingOpen={awaitingOpen}
           />
         )}
 

@@ -89,15 +89,23 @@ export function PresidentPanel({
   state,
   /** Nomination deadline, for the early-close warning. */
   deadline,
+  /**
+   * The lineup is drawn but not one film has actually started. A festival can
+   * reach SCREENING without screening anything, so the state column alone is
+   * not enough to know what to offer.
+   */
+  awaitingOpen = false,
 }: {
   festivalId: string;
   state: string;
   deadline: string | null;
+  awaitingOpen?: boolean;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const step = STEPS[state];
+  // Offer the Open button whenever nothing has begun, whatever the state says.
+  const step = awaitingOpen ? STEPS.LINEUP_SET : STEPS[state];
   if (!step) return null;
 
   const beforeDeadline =

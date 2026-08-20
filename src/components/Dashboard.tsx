@@ -359,23 +359,16 @@ export function Dashboard({
           </section>
         ) : notYetOpen(lineup) ? (
           <section className="border border-ink bg-paper-raised px-6 py-10">
-            <p className="label-eyebrow text-signal">Opening soon</p>
+            <p className="label-eyebrow text-signal">Ready to open</p>
             <p className="mt-3 text-3xl font-medium uppercase leading-tight tracking-tight">
-              The lineup is set
+              The lineup is drawn
             </p>
             <p className="mt-3 max-w-lg text-sm leading-relaxed text-ink-soft">
               {lineup.length} film{lineup.length === 1 ? "" : "s"} are
-              programmed and waiting.
+              programmed and in order. Nothing is screening yet — the first
+              film opens the moment your president opens the festival, and the
+              clock starts from then.
             </p>
-            <div className="mt-7">
-              <p className="label-eyebrow">First film opens in</p>
-              <div className="mt-2">
-                <Countdown
-                  deadline={lineup[0].viewingStartsAt}
-                  expiredLabel="Opening now"
-                />
-              </div>
-            </div>
           </section>
         ) : allClosed(lineup) ? (
           <section className="border border-rule bg-paper-raised px-6 py-10">
@@ -492,7 +485,7 @@ export function Dashboard({
           </p>
         </section>
 
-        {next && (
+        {next && current && (
           <section className="border border-rule bg-paper-raised px-5 py-5">
             <h2 className="label-eyebrow border-b border-rule pb-2">
               Coming next
