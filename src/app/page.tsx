@@ -25,7 +25,9 @@ export default async function LandingPage() {
     <main>
       <section className="pattern-signal">
         <div className="mx-auto max-w-7xl px-6 py-24 text-paper">
-          <p className="label-eyebrow text-paper/70">Couch Cinema Collective</p>
+          <p className="text-2xl font-medium uppercase tracking-[0.08em] text-paper sm:text-3xl">
+            Couch Cinema Collective
+          </p>
           <h1 className="mt-4 max-w-3xl text-balance text-7xl font-medium uppercase leading-[0.92] tracking-tight">
             Film Festival with your Friends
           </h1>
