@@ -54,6 +54,12 @@ export interface DashboardProps {
   festivalAwards: number;
   /** Curators have a film in the lineup; critics do not. */
   isCurator: boolean;
+  /**
+   * The lineup is drawn but carries no schedule yet — the president has not
+   * opened the festival. Distinct from an empty lineup, and from one that has
+   * finished.
+   */
+  drawnButNotOpen: number;
 }
 
 export function Dashboard({
@@ -73,6 +79,7 @@ export function Dashboard({
   reviewsFiled,
   festivalAwards,
   isCurator,
+  drawnButNotOpen,
 }: DashboardProps) {
   const [watched, setWatchedState] = useState(new Set(watchedIds));
   const [reviewText, setReviewText] = useState(myReview);
@@ -336,6 +343,19 @@ export function Dashboard({
               )}
             </div>
           </section>
+        ) : drawnButNotOpen > 0 ? (
+          <section className="border border-ink bg-paper-raised px-6 py-10">
+            <p className="label-eyebrow text-signal">Ready to open</p>
+            <p className="mt-3 text-3xl font-medium uppercase leading-tight tracking-tight">
+              The lineup is drawn
+            </p>
+            <p className="mt-3 max-w-lg text-sm leading-relaxed text-ink-soft">
+              {drawnButNotOpen} film{drawnButNotOpen === 1 ? "" : "s"} are
+              programmed and in order. There is no clock yet — the first film
+              opens the moment your president opens the festival, and you will
+              have the full window from then.
+            </p>
+          </section>
         ) : notYetOpen(lineup) ? (
           <section className="border border-ink bg-paper-raised px-6 py-10">
             <p className="label-eyebrow text-signal">Opening soon</p>
@@ -344,8 +364,7 @@ export function Dashboard({
             </p>
             <p className="mt-3 max-w-lg text-sm leading-relaxed text-ink-soft">
               {lineup.length} film{lineup.length === 1 ? "" : "s"} are
-              programmed and waiting. Nothing has opened yet — the first one
-              starts the moment your president opens the festival.
+              programmed and waiting.
             </p>
             <div className="mt-7">
               <p className="label-eyebrow">First film opens in</p>

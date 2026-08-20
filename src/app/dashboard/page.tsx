@@ -99,7 +99,10 @@ export default async function DashboardPage({
       .maybeSingle(),
   ]);
 
+  // Rows exist as soon as the lineup is drawn, but carry no windows until the
+  // president opens the festival — toLineup drops those, so count them here.
   const lineup = toLineup((lineupRows ?? []) as LineupRow[]);
+  const drawnButNotOpen = lineup.length === 0 ? (lineupRows ?? []).length : 0;
   const current = currentFilm(lineup);
   const next = nextFilm(lineup);
 
@@ -204,6 +207,7 @@ export default async function DashboardPage({
           reviewsFiled={(myReviews ?? []).length}
           festivalAwards={(wins ?? []).length}
           isCurator={isCurator(role)}
+          drawnButNotOpen={drawnButNotOpen}
         />
       </div>
     </main>

@@ -50,15 +50,15 @@ const STEPS: Record<string, Step> = {
     label: "Draw the lineup",
     confirm:
       "Draw the lineup now? Nominations close and screening order is drawn at random. Only films curators have LOCKED IN are included — anyone who picked without locking is left out. This cannot be undone.",
-    note: "Locked submissions only. Nothing opens until you open it.",
-    run: (id) => setLineup(id),
+    note: "Locked submissions only. Nothing starts until you open it.",
+    run: setLineup,
   },
   LINEUP_SET: {
     status: "Lineup drawn — nothing is screening yet",
     label: "Open the festival",
     confirm:
-      "Open the festival? The first film opens immediately and the whole schedule is stamped from now.",
-    note: "Starts the clock: film one opens the moment you press this.",
+      "Open the festival? The first film opens immediately and every window is scheduled from this moment.",
+    note: "Film one opens the instant you press this — no waiting.",
     run: startScreening,
   },
   SCREENING: {

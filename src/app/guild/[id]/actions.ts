@@ -83,24 +83,20 @@ export async function openNominations(
 /**
  * NOMINATING → LINEUP_SET, via the database's set_lineup().
  *
- * Postgres builds the lineup from the curators' picks, shuffles the screening
- * order, and stamps every film's viewing/review/voting windows from the
- * festival's cadence. Doing it there rather than here means the schedule and
- * the rules that read it can never disagree.
+ * Postgres builds the lineup from the locked submissions and shuffles the
+ * screening order. It deliberately does not schedule anything: a festival
+ * should not have a running clock before its president has opened it, and a
+ * countdown to a start time nobody chose is worse than no countdown at all.
+ * openFestival() stamps every window, from the moment it is pressed.
  */
 export async function setLineup(
   festivalId: string,
-  startsAt?: string,
 ): Promise<FestivalActionResult> {
   const { supabase, festival, error } = await requirePresident(festivalId);
   if (error || !festival) return { error: error ?? "Festival not found." };
 
-  // Default to tomorrow, so nobody wakes up already behind on the first film.
-  const start = startsAt ?? new Date(Date.now() + 86_400_000).toISOString();
-
   const { error: rpcError } = await supabase.rpc("set_lineup", {
     fid: festivalId,
-    starts_at: start,
   });
   if (rpcError) {
     return {
@@ -111,8 +107,8 @@ export async function setLineup(
   }
 
   await announce(festival.guild_id, {
-    title: "The lineup is set",
-    body: "The festival opens shortly. First film, first window.",
+    title: "The lineup is drawn",
+    body: "Your president opens the festival next.",
     path: "/dashboard",
   });
 
@@ -158,14 +154,21 @@ export async function openAwardsVoting(
   if (error || !festival) return { error: error ?? "Festival not found." };
 
   // Voting on films nobody has finished watching would decide nothing.
-  const { data: open } = await supabase
+  // A null closes_at means the film was never scheduled — an unopened
+  // festival, which must not read as "everything has already closed".
+  const { data: unfinished } = await supabase
     .from("lineup_films")
-    .select("tmdb_id")
+    .select("tmdb_id, closes_at")
     .eq("festival_id", festivalId)
-    .gt("closes_at", new Date().toISOString());
-  if ((open ?? []).length > 0) {
+    .or(`closes_at.is.null,closes_at.gt.${new Date().toISOString()}`);
+
+  const stillOpen = (unfinished ?? []).length;
+  if (stillOpen > 0) {
+    const unscheduled = (unfinished ?? []).filter((f) => !f.closes_at).length;
     return {
-      error: `${open!.length} film${open!.length === 1 ? " is" : "s are"} still screening — the ballot opens when the last one closes.`,
+      error: unscheduled
+        ? "The festival hasn't been opened yet — open it before the ballot."
+        : `${stillOpen} film${stillOpen === 1 ? " is" : "s are"} still screening — the ballot opens when the last one closes.`,
     };
   }
 
