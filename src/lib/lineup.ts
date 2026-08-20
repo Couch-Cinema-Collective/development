@@ -1,4 +1,4 @@
-import type { Cadence, LineupFilm, ScreeningPhase } from "./types";
+import type { LineupFilm, ScreeningPhase } from "./types";
 
 /**
  * The festival clock.
@@ -41,6 +41,8 @@ export function phaseDeadline(
 export const PHASE_LABELS: Record<ScreeningPhase, string> = {
   UPCOMING: "Coming next",
   VIEWING: "Now screening",
+  // Retained for completeness: with reviews written during the viewing
+  // window, open_festival() gives this phase zero length and it never shows.
   REVIEWING: "Reviews open",
   CRITICS_VOTING: "Critics voting",
   CLOSED: "Closed",
@@ -91,19 +93,27 @@ export function nextFilm(
   return lineup.find((f) => phaseOf(f, now) === "UPCOMING") ?? null;
 }
 
-/** One film's cycle, end to end, in days. */
-export function cycleDays(cadence: Cadence): number {
-  return cadence.viewingDays + cadence.reviewDays + cadence.votingHours / 24;
-}
+/**
+ * The fixed cycle, in days.
+ *
+ * Every film after the first opens Thursday 00:00 Pacific, screens until
+ * midnight the Sunday ten days later, then gets Monday to Wednesday for
+ * critics to vote on its reviews — an exact fortnight, week-aligned. The
+ * first film is ragged: it starts whenever the president opens the festival
+ * and runs to the second Sunday, so it can be anything from 11 to 17 days.
+ *
+ * Mirrors open_festival() in schema-10-calendar-schedule.sql.
+ */
+export const CYCLE_DAYS = 14;
 
 /** How long a whole festival runs, given the lineup size. */
-export function festivalDays(cadence: Cadence, filmCount: number): number {
-  return Math.round(cycleDays(cadence) * filmCount);
+export function festivalDays(filmCount: number): number {
+  return CYCLE_DAYS * Math.max(0, filmCount);
 }
 
 /** "About four months" — the number a president actually wants at setup. */
-export function describeLength(cadence: Cadence, filmCount: number): string {
-  const days = festivalDays(cadence, filmCount);
+export function describeLength(filmCount: number): string {
+  const days = festivalDays(filmCount);
   if (days < 14) return `${days} days`;
   if (days < 60) return `${Math.round(days / 7)} weeks`;
   return `about ${Math.round(days / 30)} months`;

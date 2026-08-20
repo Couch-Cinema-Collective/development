@@ -40,11 +40,11 @@ function slidesFor(role: GuildRole): Slide[] {
     {
       eyebrow: "The rhythm",
       title: "Watch, write, vote",
-      body: "Each film runs the same three windows in turn. Miss a window and you miss that round — that is the whole eligibility system.",
+      body: "Every film runs the same fortnight, on the same calendar. Miss a window and you miss that round — that is the whole eligibility system.",
       points: [
-        "A fortnight to watch it",
-        `Two days to write ${REVIEW_MAX_CHARS} characters on it`,
-        `Twenty-four hours to spend ${UPVOTES_PER_FILM} upvotes on other people's reviews`,
+        "Watch it and write it up by Sunday midnight",
+        `${REVIEW_MAX_CHARS} characters, filed while the film is still screening`,
+        `Monday to Wednesday, spend ${UPVOTES_PER_FILM} upvotes on other people's reviews`,
       ],
     },
     {
@@ -97,7 +97,7 @@ function slidesFor(role: GuildRole): Slide[] {
         title: "You set the pace",
         body: "As president you decide what the guild watches and how fast, then move the festival along one step at a time. You will only ever be shown the one thing it is waiting on.",
         points: [
-          "Set the theme, the cadence, and how many curator seats exist",
+          "Set the theme and how many curator seats exist",
           "Curator seats fill first come first served — you do not approve them",
           "Draw the lineup once curators have locked in",
           "Open the festival to start the clock, then publish the ceremony at the end",

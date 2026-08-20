@@ -7,7 +7,6 @@ import { createFestival } from "@/app/festival/new/actions";
 import {
   AWARD_CATALOG,
   AWARD_SUGGESTIONS,
-  CADENCE_PRESETS,
   DEFAULT_AWARD_IDS,
 } from "@/lib/mock/awards";
 import { describeLength } from "@/lib/lineup";
@@ -15,7 +14,9 @@ import type { SeasonCategory } from "@/lib/mock/categories";
 import {
   BEST_OF_THE_FEST,
   MAX_CUSTOM_AWARDS,
+  REVIEW_MAX_CHARS,
   THEME_FAMILIES,
+  UPVOTES_PER_FILM,
   type ThemeFamily,
   type Visibility,
 } from "@/lib/types";
@@ -30,7 +31,7 @@ const FAMILY_MAP: Record<ThemeFamily, string | null> = {
   custom: null,
 };
 
-const STEPS = ["Theme", "Pace", "Awards", "Open"];
+const STEPS = ["Theme", "Schedule", "Awards", "Open"];
 
 /**
  * Festival setup, in four steps.
@@ -56,7 +57,6 @@ export function FestivalWizard({
   const [themeFamily, setThemeFamily] = useState<ThemeFamily>("genres");
   const [theme, setTheme] = useState("");
   const [visibility, setVisibility] = useState<Visibility>("closed");
-  const [cadenceId, setCadenceId] = useState("standard");
   const [awardIds, setAwardIds] = useState<string[]>(DEFAULT_AWARD_IDS);
   const [customAwards, setCustomAwards] = useState<string[]>([]);
   const [customDraft, setCustomDraft] = useState("");
@@ -64,7 +64,6 @@ export function FestivalWizard({
   const [posters, setPosters] = useState<Record<string, string | null>>({});
   const [pending, startTransition] = useTransition();
 
-  const cadence = CADENCE_PRESETS.find((c) => c.id === cadenceId)!;
   const honoraryCount = awardIds.length + customAwards.length;
 
   const suggestions = useMemo(
@@ -127,7 +126,6 @@ export function FestivalWizard({
         theme,
         themeFamily,
         visibility,
-        cadenceId,
         awardIds,
         customAwardNames: customAwards,
       });
@@ -281,55 +279,60 @@ export function FestivalWizard({
           </section>
         )}
 
-        {/* ── 2. Pace ──────────────────────────────────────────────────── */}
+        {/* ── 2. Schedule ──────────────────────────────────────────────── */}
         {step === 1 && (
           <section>
             <h2 className="text-3xl font-medium uppercase leading-none tracking-tight">
-              How fast?
+              The schedule
             </h2>
             <p className="mt-3 max-w-lg text-sm leading-relaxed text-ink-soft">
-              Each film gets a viewing window, then a couple of days for
-              reviews, then a short window for critics to vote on those reviews.
-              Then the next film opens.
+              Every festival runs the same rhythm, anchored to Pacific time, so
+              the guild always knows what is due and when. You choose when it
+              starts; the calendar does the rest.
             </p>
 
-            <div className="mt-8 grid gap-px border border-rule bg-rule">
-              {CADENCE_PRESETS.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => setCadenceId(c.id)}
-                  className={`px-6 py-5 text-left transition-colors ${
-                    cadenceId === c.id
-                      ? "bg-ink text-paper"
-                      : "bg-paper-raised hover:bg-paper"
-                  }`}
-                >
+            <ol className="mt-8 grid gap-px border border-rule bg-rule">
+              {[
+                {
+                  label: "The first film",
+                  when: "Opens the moment you open the festival",
+                  note: "Screens until midnight at the end of the second Sunday.",
+                },
+                {
+                  label: "Watch and write",
+                  when: "Two full weekends",
+                  note: `Reviews are filed during the viewing window — ${REVIEW_MAX_CHARS} characters, and they close when voting opens.`,
+                },
+                {
+                  label: "Critics vote",
+                  when: "Monday to Wednesday",
+                  note: `Reviews go up anonymously and every critic spends ${UPVOTES_PER_FILM} upvotes. Closes Wednesday midnight.`,
+                },
+                {
+                  label: "The next film",
+                  when: "Thursday morning",
+                  note: "Ten days to the following Sunday, then Monday to Wednesday again — a fortnight per film, every film.",
+                },
+              ].map((row) => (
+                <li key={row.label} className="bg-paper-raised px-6 py-5">
                   <div className="flex flex-wrap items-baseline justify-between gap-3">
                     <p className="text-lg font-medium uppercase tracking-tight">
-                      {c.label}
+                      {row.label}
                     </p>
-                    <p className="label-eyebrow">
-                      {c.viewingDays}d watch · {c.reviewDays}d review ·{" "}
-                      {c.votingHours}h vote
-                    </p>
+                    <p className="label-eyebrow text-signal">{row.when}</p>
                   </div>
-                  <p
-                    className={`mt-1.5 text-xs ${
-                      cadenceId === c.id ? "text-paper/60" : "text-ink-faint"
-                    }`}
-                  >
-                    {c.note}
+                  <p className="mt-1.5 text-xs leading-relaxed text-ink-faint">
+                    {row.note}
                   </p>
-                </button>
+                </li>
               ))}
-            </div>
+            </ol>
 
             <p className="mt-5 text-sm text-ink-soft">
-              With {curatorCount} curator{curatorCount === 1 ? "" : "s"}{" "}
-              seated, that runs{" "}
+              With {curatorCount} curator{curatorCount === 1 ? "" : "s"} seated,
+              that runs{" "}
               <strong className="font-medium">
-                {describeLength(cadence, Math.max(1, curatorCount))}
+                {describeLength(Math.max(1, curatorCount))}
               </strong>
               .
             </p>
@@ -515,10 +518,10 @@ export function FestivalWizard({
                     THEME_FAMILIES.find((f) => f.id === themeFamily)?.label ??
                     "",
                 },
-                { label: "Pace", value: cadence.label },
+                { label: "Pace", value: "A fortnight a film" },
                 {
                   label: "Runs",
-                  value: describeLength(cadence, Math.max(1, curatorCount)),
+                  value: describeLength(Math.max(1, curatorCount)),
                 },
                 {
                   label: "Lineup",

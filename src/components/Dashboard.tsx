@@ -214,14 +214,14 @@ export function Dashboard({
             {/* The single action this phase asks for. */}
             <div className="border-t border-rule px-6 py-6">
               {phase === "VIEWING" && (
-                <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-rule pb-6">
                   <div>
                     <p className="text-sm font-medium uppercase tracking-tight">
-                      {isWatched ? "Watched" : "Watch it before the window shuts"}
+                      {isWatched ? "Watched" : "Watch it before Sunday midnight"}
                     </p>
                     <p className="mt-1 text-xs text-ink-faint">
-                      Reviews open when this period ends — you get{" "}
-                      {REVIEW_MAX_CHARS} characters.
+                      Write it up any time before the window shuts — voting on
+                      reviews opens Monday.
                     </p>
                   </div>
                   <button
@@ -239,8 +239,8 @@ export function Dashboard({
                 </div>
               )}
 
-              {phase === "REVIEWING" && (
-                <div>
+              {(phase === "VIEWING" || phase === "REVIEWING") && (
+                <div className={phase === "VIEWING" ? "pt-6" : ""}>
                   <div className="flex flex-wrap items-baseline justify-between gap-3">
                     <p className="text-sm font-medium uppercase tracking-tight">
                       Your review
@@ -263,7 +263,8 @@ export function Dashboard({
                   />
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                     <p className="text-xs text-ink-faint">
-                      Anonymous until the voting window shuts.
+                      Anonymous until the voting window shuts. Editable until
+                      voting opens Monday.
                     </p>
                     <button
                       type="button"
@@ -534,7 +535,8 @@ export function Dashboard({
 /** What the clock is counting down to, in the member's terms. */
 const DEADLINE_LABEL: Record<ScreeningPhase, string> = {
   UPCOMING: "Opens in",
-  VIEWING: "Watch it within",
+  // Watching and writing share one window, closing Sunday midnight Pacific.
+  VIEWING: "Watch and review within",
   REVIEWING: "Review it within",
   CRITICS_VOTING: "Vote within",
   CLOSED: "Closed",

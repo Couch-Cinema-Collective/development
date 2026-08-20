@@ -3,11 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import {
-  AWARD_CATALOG,
-  BEST_OF_THE_FEST_AWARD,
-  CADENCE_PRESETS,
-} from "@/lib/mock/awards";
+import { AWARD_CATALOG, BEST_OF_THE_FEST_AWARD } from "@/lib/mock/awards";
 import { createClient } from "@/lib/supabase/server";
 import {
   MAX_CUSTOM_AWARDS,
@@ -22,11 +18,12 @@ export interface CreateFestivalInput {
   theme: string;
   themeFamily: ThemeFamily;
   visibility: Visibility;
-  /** A CADENCE_PRESETS id, or "custom" with the three windows below. */
-  cadenceId: string;
-  customViewingDays?: number;
-  customReviewDays?: number;
-  customVotingHours?: number;
+  /**
+   * Accepted and ignored. The schedule is fixed by open_festival() — a
+   * fortnight a film, anchored to the Pacific calendar — so there is no pace
+   * to choose. Kept in the shape so the wizard call site stays stable.
+   */
+  cadenceId?: string;
   /** Honorary categories switched on from the catalog. */
   awardIds: string[];
   customAwardNames: string[];
@@ -44,10 +41,11 @@ const VALID_FAMILIES: ThemeFamily[] = [
 /**
  * Open a festival.
  *
- * It lands in DRAFT rather than NOMINATING: the president decides when the
- * window actually opens, from the one button on the guild page. Film count is
- * deliberately not set here — one film per curator means the lineup size is
- * the roster size, settled when the lineup is drawn.
+ * It lands straight in NOMINATING: there is nothing a president can usefully
+ * do to a festival that exists but is not taking submissions, so making them
+ * press a second button to start was a delay with no decision in it. Film
+ * count is deliberately not set here — one film per curator means the lineup
+ * size is the roster size, settled when the lineup is drawn.
  */
 export async function createFestival(
   input: CreateFestivalInput,
@@ -76,27 +74,6 @@ export async function createFestival(
     : "custom";
   const visibility: Visibility =
     input.visibility === "open" ? "open" : "closed";
-
-  const preset = CADENCE_PRESETS.find((p) => p.id === input.cadenceId);
-  if (!preset && input.cadenceId !== "custom") {
-    return { error: "Pick a cadence." };
-  }
-
-  const viewingDays = clamp(
-    preset?.viewingDays ?? input.customViewingDays ?? 14,
-    1,
-    60,
-  );
-  const reviewDays = clamp(
-    preset?.reviewDays ?? input.customReviewDays ?? 2,
-    1,
-    14,
-  );
-  const votingHours = clamp(
-    preset?.votingHours ?? input.customVotingHours ?? 24,
-    1,
-    168,
-  );
 
   // Award names come from the server-side catalog — only custom names are
   // taken from the client, and only as display text.
@@ -146,11 +123,13 @@ export async function createFestival(
       theme,
       theme_family: themeFamily,
       visibility,
-      state: "DRAFT",
+      state: "NOMINATING",
+      // Curators get a fortnight to submit unless the president draws the
+      // lineup sooner; drawing it is what actually closes nominations.
+      nomination_deadline: new Date(
+        Date.now() + 14 * 86_400_000,
+      ).toISOString(),
       film_count: 0,
-      viewing_days: viewingDays,
-      review_days: reviewDays,
-      voting_hours: votingHours,
     })
     .select("id")
     .single();
@@ -183,8 +162,4 @@ export async function createFestival(
 
   revalidatePath(`/guild/${input.guildId}`);
   redirect(`/guild/${input.guildId}`);
-}
-
-function clamp(n: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, Math.round(n)));
 }
