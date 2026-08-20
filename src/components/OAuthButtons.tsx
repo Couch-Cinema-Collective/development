@@ -18,12 +18,14 @@ const FACEBOOK_ENABLED = false;
  * Apple requires Sign in with Apple wherever a third-party login is offered
  * (App Store guideline 4.8) — the iOS build cannot ship without it.
  *
- * Flip to true once there is a paid Apple Developer account and:
- *   1. A Services ID + Sign in with Apple key (.p8) exist in the Apple portal
- *   2. Apple is enabled in Supabase → Authentication → Sign In / Providers
- * Until then the button is hidden rather than shown broken. See IOS.md.
+ * Live as of 2026-08-19: Services ID com.couchcinemacollective.web, key
+ * BWHB7P6JC8, configured in Supabase.
+ *
+ * NOTE: the Supabase client secret is a JWT that expires 2027-02-15. Web
+ * sign-in fails silently when it lapses — regenerate with
+ * scripts/apple-client-secret.mjs.
  */
-const APPLE_ENABLED = false;
+const APPLE_ENABLED = true;
 
 export function OAuthButtons({ next = "/welcome" }: { next?: string }) {
   const [error, setError] = useState<string | null>(null);

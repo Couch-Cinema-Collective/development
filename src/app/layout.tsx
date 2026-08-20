@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import "./globals.css";
 import { AuthStatus } from "@/components/AuthStatus";
+import { PushRegistrar } from "@/components/PushRegistrar";
 import { SiteNav } from "@/components/SiteNav";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
@@ -85,6 +86,8 @@ export default async function RootLayout({
             <SiteNav items={nav} authSlot={<AuthStatus />} />
           </div>
         </header>
+
+        <PushRegistrar signedIn={signedIn} />
 
         {children}
 

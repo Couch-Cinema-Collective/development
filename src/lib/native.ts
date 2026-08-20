@@ -57,3 +57,38 @@ export async function shareLink(url: string, title: string): Promise<void> {
   }
   await navigator.clipboard.writeText(url);
 }
+
+/**
+ * Ask for notification permission and hand the resulting APNs token to the
+ * server. No-ops on the web.
+ *
+ * `onOpen` receives the path carried in the payload so a tapped notification
+ * lands on the right screen rather than the home page.
+ */
+export async function registerPush(
+  save: (token: string) => Promise<unknown>,
+  onOpen?: (path: string) => void,
+): Promise<void> {
+  if (!isNative()) return;
+
+  const { PushNotifications } = await import("@capacitor/push-notifications");
+
+  const status = await PushNotifications.checkPermissions();
+  let granted = status.receive === "granted";
+  if (!granted && status.receive === "prompt") {
+    granted = (await PushNotifications.requestPermissions()).receive === "granted";
+  }
+  // Declining is a legitimate answer — never nag, never block the app.
+  if (!granted) return;
+
+  await PushNotifications.addListener("registration", (token) => {
+    void save(token.value);
+  });
+
+  await PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
+    const path = (action.notification.data as { path?: string } | undefined)?.path;
+    if (path && onOpen) onOpen(path);
+  });
+
+  await PushNotifications.register();
+}
