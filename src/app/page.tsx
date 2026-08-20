@@ -27,12 +27,11 @@ export default async function LandingPage() {
         <div className="mx-auto max-w-7xl px-6 py-24 text-paper">
           <p className="label-eyebrow text-paper/70">Couch Cinema Collective</p>
           <h1 className="mt-4 max-w-3xl text-balance text-7xl font-medium uppercase leading-[0.92] tracking-tight">
-            A film society with an awards night
+            Film Festival with your Friends
           </h1>
           <p className="mt-6 max-w-md text-paper/85">
-            Your guild nominates a season of cinema, watches it together, and
-            settles it the honest way — with a ceremony. Recognition comes from
-            what you nominated, not points we made up.
+            Establish a guild. Premiere your own festival. Compete with your
+            friends for who has the best taste in cinema. All from your couch.
           </p>
 
           <div className="mt-10 flex flex-wrap gap-4">
