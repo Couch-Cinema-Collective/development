@@ -130,7 +130,7 @@ Proxied through Next.js route handlers so the key never reaches the browser. Ser
 **Until the key arrives:** falls back to TMDB-shaped fixtures on the same code path when `TMDB_API_KEY` is unset. Drop the key in `.env.local` and it's live — no rework.
 
 ### 3.2 External critic scores — none configured
-IMDb + Rotten Tomatoes + Metacritic by IMDb ID, 1,000/day free. **Licensed CC BY-NC — non-commercial only.**
+The critic term is TMDB's own `vote_average`. Nothing else is wired up.
 
 OMDb was removed on 2026-08-19: its CC BY-NC licence does not survive shipping under a limited company. Building it behind a **provider interface** meant removal was deleting one implementation, not a redesign — every call site is untouched and `w_critic` falls back to TMDB.
 
