@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getUserMemberships } from "@/lib/guilds";
 import { createClient } from "@/lib/supabase/server";
 import type { AwardCredit, Film } from "@/lib/types";
+import { DeleteAccount } from "@/components/DeleteAccount";
 
 /**
  * The lifetime record (PLAN.md §1.3). Award credits are a count derived from
@@ -165,6 +166,7 @@ export default async function ProfilePage() {
             ))}
           </div>
         )}
+        <DeleteAccount />
       </div>
     </main>
   );

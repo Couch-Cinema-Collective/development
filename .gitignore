@@ -15,3 +15,8 @@ ios/App/App/public/
 ios/DerivedData/
 *.xcuserstate
 xcuserdata/
+
+# Apple private keys (.p8). Never commit — these are credentials, and this
+# repo is public. Downloaded once from developer.apple.com and unrecoverable.
+*.p8
+AuthKey_*.p8
