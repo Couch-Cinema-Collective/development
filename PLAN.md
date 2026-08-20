@@ -37,7 +37,7 @@ FilmScore = (w_guild  × normalized_nomination_points)
 ```
 
 - **`w_guild`** — the guild's own conviction. Default **80%**.
-- **`w_critic`** — blended external scores. Default **20%**. TMDB `vote_average` always; IMDb/RT layered in via OMDb where available (§3.2).
+- **`w_critic`** — external critic opinion. Default **20%**, sourced from TMDB's `vote_average`. A licensed provider can be added behind the seam in §3.2.
 
 No drought term. Commissioner gets two sliders and a live preview of how the slate shifts as they drag. Defaults ship sane; nobody is forced to engage with it.
 
@@ -129,10 +129,10 @@ Proxied through Next.js route handlers so the key never reaches the browser. Ser
 
 **Until the key arrives:** falls back to TMDB-shaped fixtures on the same code path when `TMDB_API_KEY` is unset. Drop the key in `.env.local` and it's live — no rework.
 
-### 3.2 OMDb — build detachable ✅ **live**
+### 3.2 External critic scores — none configured
 IMDb + Rotten Tomatoes + Metacritic by IMDb ID, 1,000/day free. **Licensed CC BY-NC — non-commercial only.**
 
-Since monetization is undecided, external scores sit behind a **provider interface**. Removing OMDb later drops `w_critic` to TMDB-only via config, not a redesign. Only fetched at slate lock, so volume is trivial.
+OMDb was removed on 2026-08-19: its CC BY-NC licence does not survive shipping under a limited company. Building it behind a **provider interface** meant removal was deleting one implementation, not a redesign — every call site is untouched and `w_critic` falls back to TMDB.
 
 ### 3.3 Trakt — phase 2
 OAuth watch verification (§1.5). Cross-references TMDB IDs, slots in cleanly.
