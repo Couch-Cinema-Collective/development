@@ -71,17 +71,19 @@ export default function PrivacyPage() {
               information from them; we never send them anything about you.
             </Item>
             <Item label="Discord">
-              Only if your guild connects a server. Season announcements are
+              Only if your guild connects a server. Festival announcements are
               posted to the channel you nominate. We do not read your messages.
             </Item>
           </ul>
         </Section>
 
-        <Section title="Ballots and nominations">
+        <Section title="Ballots, nominations and reviews">
           <p>
-            Nominations are hidden from other members until the slate locks, and
-            ballots stay sealed until the results are published. That is enforced
-            in the database, not just the interface.
+            Nominations are hidden from other members until the lineup is set,
+            and ballots stay sealed until the results are published. Reviews are
+            anonymous while their film&apos;s voting window is open — your name
+            is attached only once that window shuts. All three are enforced in
+            the database, not just the interface.
           </p>
         </Section>
 
@@ -89,13 +91,13 @@ export default function PrivacyPage() {
           <p>
             Go to your profile and choose <strong>Delete account</strong>. This
             removes your account and everything attached to it — nominations,
-            reviews, ratings, upvotes, ballots, and guild memberships —
-            immediately and permanently. There is no recovery, and we keep no
+            reviews, upvotes, ballots, and guild memberships — immediately and
+            permanently. There is no recovery, and we keep no
             shadow copy.
           </p>
           <p className="mt-3">
             Awards already announced at a published ceremony remain part of that
-            season&apos;s record, but are no longer linked to you.
+            festival&apos;s record, but are no longer linked to you.
           </p>
         </Section>
 

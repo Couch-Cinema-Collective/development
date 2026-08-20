@@ -18,7 +18,7 @@ const jost = Jost({
 
 const SITE_URL = "https://www.couchcinemacollective.com";
 const DESCRIPTION =
-  "Guilds of film watchers nominate, watch, and award a season of cinema together.";
+  "Establish a guild, premiere your own festival, and settle who has the best taste in cinema.";
 
 /**
  * viewport-fit=cover lets the page paint under the notch and home
@@ -52,9 +52,9 @@ export const metadata: Metadata = {
 };
 
 /**
- * Deliberately spare (per design review): the season surfaces — draft,
- * season room, ballot, ceremony — are navigated from the guild page, not
- * from here.
+ * Deliberately spare (per design review): the festival surfaces —
+ * nominations, ballot, ceremony — are navigated from the guild page and the
+ * dashboard, not from here.
  */
 const PUBLIC_NAV = [
   { href: "/", label: "Home" },
@@ -62,8 +62,12 @@ const PUBLIC_NAV = [
 ];
 
 // "My Guilds" lives as the boxed button in AuthStatus, not here — having it
-// in both places read as a duplicate.
-const MEMBER_NAV = [{ href: "/profile", label: "Profile" }];
+// in both places read as a duplicate. Dashboard earns its slot because it is
+// where a member goes every week of a running festival.
+const MEMBER_NAV = [
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/profile", label: "Profile" },
+];
 
 export default async function RootLayout({
   children,

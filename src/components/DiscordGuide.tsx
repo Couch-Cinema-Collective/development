@@ -1,5 +1,5 @@
 /**
- * Setup instructions for the things a commissioner has to do inside Discord
+ * Setup instructions for the things a president has to do inside Discord
  * itself. Always visible — this used to hide behind a disclosure and people
  * simply didn't find it.
  *
@@ -43,7 +43,7 @@ export function DiscordGuide() {
         />
         <Steps
           title="Add the webhook"
-          note="Lets the app post season events into a channel."
+          note="Lets the app post festival events into a channel."
           steps={WEBHOOK_STEPS}
         />
         <Steps

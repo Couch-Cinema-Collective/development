@@ -1,13 +1,22 @@
 import { redirect } from "next/navigation";
 
+import { DeleteAccount } from "@/components/DeleteAccount";
 import { getUserMemberships } from "@/lib/guilds";
 import { createClient } from "@/lib/supabase/server";
-import type { AwardCredit, Film } from "@/lib/types";
-import { DeleteAccount } from "@/components/DeleteAccount";
+import {
+  BEST_OF_THE_FEST,
+  VOICE_OF_THE_PEOPLE,
+  type AwardCredit,
+  type Film,
+} from "@/lib/types";
 
 /**
- * The lifetime record (PLAN.md §1.3). Award credits are a count derived from
- * what actually won — every nominator of a winning film gets full credit.
+ * The lifetime record.
+ *
+ * Two things are being tracked, and they are deliberately separate: festivals
+ * won as a curator (Best of the Fest, the only award that scores) and upvotes
+ * earned as a critic. Honorary awards are listed because they are fun, and
+ * counted nowhere because they are not the game.
  */
 export default async function ProfilePage() {
   const supabase = await createClient();
@@ -27,74 +36,89 @@ export default async function ProfilePage() {
     user.email ||
     "Member";
 
-  // Finished seasons across the member's guilds.
-  const guildIds = (await getUserMemberships()).map((m) => m.guildId);
-  const { data: seasons } = guildIds.length
+  // Finished festivals across the member's guilds.
+  const guildIds = (await getUserMemberships())
+    .filter((m) => m.status === "active")
+    .map((m) => m.guildId);
+  const { data: festivals } = guildIds.length
     ? await supabase
-        .from("seasons")
-        .select("id, number, guild_id")
+        .from("festivals")
+        .select("id, number, theme, guild_id")
         .in("guild_id", guildIds)
-        .in("state", ["PUBLISHED", "ARCHIVED"])
+        .in("state", ["CEREMONY", "ARCHIVED"])
     : { data: [] };
-  const seasonById = new Map((seasons ?? []).map((s) => [s.id, s]));
-  const seasonIds = [...seasonById.keys()];
+  const festivalById = new Map((festivals ?? []).map((f) => [f.id, f]));
+  const festivalIds = [...festivalById.keys()];
 
-  // Winners, my nominations, and film titles for those seasons.
-  const [{ data: resultRows }, { data: myNominations }, { data: slateRows }] =
-    seasonIds.length
+  // Awards won by films this member put up, plus the titles to name them.
+  const [{ data: myWins }, { data: lineupRows }, { data: awardNames }] =
+    festivalIds.length
       ? await Promise.all([
           supabase
             .from("award_results")
-            .select("season_id, award_id, tmdb_id")
-            .in("season_id", seasonIds),
+            .select("festival_id, award_id, tmdb_id")
+            .in("festival_id", festivalIds)
+            .eq("curator_id", user.id),
           supabase
-            .from("nominations")
-            .select("season_id, tmdb_id")
-            .in("season_id", seasonIds)
-            .eq("user_id", user.id),
+            .from("lineup_films")
+            .select("festival_id, tmdb_id, film")
+            .in("festival_id", festivalIds),
           supabase
-            .from("slate_films")
-            .select("season_id, tmdb_id, film")
-            .in("season_id", seasonIds),
+            .from("festival_awards")
+            .select("festival_id, award_id, name, scoring")
+            .in("festival_id", festivalIds),
         ])
       : [{ data: [] }, { data: [] }, { data: [] }];
 
-  const { data: awardNames } = seasonIds.length
-    ? await supabase
-        .from("season_awards")
-        .select("season_id, award_id, name")
-        .in("season_id", seasonIds)
-    : { data: [] };
-  const awardName = new Map(
-    (awardNames ?? []).map((a) => [`${a.season_id}:${a.award_id}`, a.name]),
+  const awardMeta = new Map(
+    (awardNames ?? []).map((a) => [
+      `${a.festival_id}:${a.award_id}`,
+      { name: a.name, scoring: a.scoring as boolean },
+    ]),
   );
   const filmTitle = new Map(
-    (slateRows ?? []).map((r) => [
-      `${r.season_id}:${r.tmdb_id}`,
+    (lineupRows ?? []).map((r) => [
+      `${r.festival_id}:${r.tmdb_id}`,
       (r.film as Film)?.title ?? "Unknown film",
     ]),
   );
-  const myStakes = new Set(
-    (myNominations ?? []).map((n) => `${n.season_id}:${n.tmdb_id}`),
-  );
 
-  // A credit for every winning film this member nominated (§1.3).
-  const credits: AwardCredit[] = (resultRows ?? [])
-    .filter((r) => myStakes.has(`${r.season_id}:${r.tmdb_id}`))
-    .map((r) => ({
+  const credits: AwardCredit[] = (myWins ?? []).map((r) => {
+    const meta = awardMeta.get(`${r.festival_id}:${r.award_id}`);
+    return {
       awardId: r.award_id,
-      awardName: awardName.get(`${r.season_id}:${r.award_id}`) ?? r.award_id,
-      filmTitle: filmTitle.get(`${r.season_id}:${r.tmdb_id}`) ?? "Unknown film",
-      seasonNumber: seasonById.get(r.season_id)?.number ?? 0,
-    }));
+      awardName: meta?.name ?? r.award_id,
+      filmTitle: filmTitle.get(`${r.festival_id}:${r.tmdb_id}`) ?? "Unknown film",
+      festivalNumber: festivalById.get(r.festival_id)?.number ?? 0,
+      scoring: meta?.scoring ?? false,
+    };
+  });
+
+  const festivalsWon = credits.filter((c) => c.scoring).length;
+
+  // Upvotes earned as a critic, across every finished festival.
+  const standings = await Promise.all(
+    festivalIds.map(async (id) => {
+      const { data } = await supabase.rpc("critic_standings", { fid: id });
+      const rows = (data ?? []) as { user_id: string; upvotes: number }[];
+      const mine = rows.find((r) => r.user_id === user.id);
+      return {
+        upvotes: Number(mine?.upvotes ?? 0),
+        // A win is topping the table, not merely appearing in it.
+        wonVoice: rows[0]?.user_id === user.id && Number(rows[0].upvotes) > 0,
+      };
+    }),
+  );
+  const upvotesEarned = standings.reduce((sum, s) => sum + s.upvotes, 0);
+  const voiceWins = standings.filter((s) => s.wonVoice).length;
 
   const grouped = new Map<number, AwardCredit[]>();
   for (const award of credits) {
-    const bucket = grouped.get(award.seasonNumber) ?? [];
+    const bucket = grouped.get(award.festivalNumber) ?? [];
     bucket.push(award);
-    grouped.set(award.seasonNumber, bucket);
+    grouped.set(award.festivalNumber, bucket);
   }
-  const bySeason = [...grouped.entries()].sort((a, b) => b[0] - a[0]);
+  const byFestival = [...grouped.entries()].sort((a, b) => b[0] - a[0]);
 
   const memberSince = profile?.created_at
     ? new Date(profile.created_at).toLocaleDateString("en-US", {
@@ -102,6 +126,13 @@ export default async function ProfilePage() {
         year: "numeric",
       })
     : null;
+
+  const stats = [
+    { label: "Festivals won", value: festivalsWon },
+    { label: VOICE_OF_THE_PEOPLE, value: voiceWins },
+    { label: "Upvotes earned", value: upvotesEarned },
+    { label: "Festivals finished", value: festivalIds.length },
+  ];
 
   return (
     <main className="pattern-signal-dark min-h-screen">
@@ -114,56 +145,61 @@ export default async function ProfilePage() {
             {name}
           </h1>
 
-          <dl className="mt-8 flex gap-12">
-            <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-paper/50">
-                Awards
-              </dt>
-              <dd className="mt-1 text-3xl font-medium tabular-nums text-paper">
-                {credits.length}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs uppercase tracking-[0.18em] text-paper/50">
-                Seasons finished
-              </dt>
-              <dd className="mt-1 text-3xl font-medium tabular-nums text-paper">
-                {seasonIds.length}
-              </dd>
-            </div>
+          <dl className="mt-8 grid grid-cols-2 gap-8 sm:flex sm:gap-12">
+            {stats.map((s) => (
+              <div key={s.label}>
+                <dt className="text-xs uppercase tracking-[0.18em] text-paper/50">
+                  {s.label}
+                </dt>
+                <dd className="mt-1 text-3xl font-medium tabular-nums text-paper">
+                  {s.value}
+                </dd>
+              </div>
+            ))}
           </dl>
         </header>
 
         {credits.length === 0 ? (
           <p className="mt-10 max-w-xl leading-relaxed text-paper/60">
-            No award credits yet. They come from nominating films that go on to
-            win — when a season you nominated in publishes its ceremony, your
-            record grows here.
+            No awards yet. They come from putting up a film that goes on to win
+            — when a festival you curated in publishes its ceremony, your record
+            grows here.
           </p>
         ) : (
           <div className="mt-10 space-y-12">
-            {bySeason.map(([seasonNumber, awards]) => (
-              <section key={seasonNumber}>
+            {byFestival.map(([festivalNumber, awards]) => (
+              <section key={festivalNumber}>
                 <h2 className="border-b border-paper/20 pb-2 text-xs uppercase tracking-[0.18em] text-paper">
-                  Season {seasonNumber}
+                  Festival {festivalNumber}
                 </h2>
                 <ul className="mt-4 grid gap-3">
-                  {awards.map((award) => (
-                    <li
-                      key={`${award.seasonNumber}-${award.awardId}`}
-                      className="flex flex-wrap items-baseline gap-x-6 gap-y-1"
-                    >
-                      <span className="w-64 text-sm font-medium uppercase tracking-[0.06em] text-paper">
-                        {award.awardName}
-                      </span>
-                      <span className="text-sm text-paper/60">
-                        {award.filmTitle}
-                      </span>
-                    </li>
-                  ))}
+                  {awards
+                    // The one that counts leads its festival.
+                    .sort((a, b) => Number(b.scoring) - Number(a.scoring))
+                    .map((award) => (
+                      <li
+                        key={`${award.festivalNumber}-${award.awardId}`}
+                        className="flex flex-wrap items-baseline gap-x-6 gap-y-1"
+                      >
+                        <span
+                          className={`w-64 text-sm font-medium uppercase tracking-[0.06em] ${
+                            award.scoring ? "text-signal" : "text-paper"
+                          }`}
+                        >
+                          {award.awardName}
+                        </span>
+                        <span className="text-sm text-paper/60">
+                          {award.filmTitle}
+                        </span>
+                      </li>
+                    ))}
                 </ul>
               </section>
             ))}
+            <p className="text-xs leading-relaxed text-paper/40">
+              {BEST_OF_THE_FEST} is shown in red — it is the only award that
+              counts toward festivals won. The rest are honours.
+            </p>
           </div>
         )}
         <DeleteAccount />

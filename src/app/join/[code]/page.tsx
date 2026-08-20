@@ -3,9 +3,18 @@ import Link from "next/link";
 import { JoinGuildForm } from "@/components/GuildForms";
 import { createClient } from "@/lib/supabase/server";
 
+interface GuildPreview {
+  id: string;
+  name: string;
+  curator_count: number;
+  critic_count: number;
+  max_curators: number;
+  max_critics: number;
+}
+
 /**
  * The invite landing page — what a prospective member sees when the
- * commissioner's link is shared. Works signed-out (guild_preview is a
+ * president's link is shared. Works signed-out (guild_preview is a
  * security-definer RPC): the join button routes through sign-in and back.
  */
 export default async function JoinPage({
@@ -20,9 +29,7 @@ export default async function JoinPage({
     supabase.rpc("guild_preview", { code }),
     supabase.auth.getUser(),
   ]);
-  const preview = previews?.[0] as
-    | { id: string; name: string; member_count: number; at_capacity: boolean }
-    | undefined;
+  const preview = previews?.[0] as GuildPreview | undefined;
   const user = auth?.user ?? null;
 
   if (!preview) {
@@ -40,6 +47,9 @@ export default async function JoinPage({
     );
   }
 
+  const curatorSeats = preview.max_curators - preview.curator_count;
+  const criticSeats = preview.max_critics - preview.critic_count;
+
   return (
     <main className="mx-auto max-w-md px-6 py-16">
       <p className="label-eyebrow">You&apos;re invited to</p>
@@ -47,19 +57,27 @@ export default async function JoinPage({
         {preview.name}
       </h1>
       <p className="mt-4 text-sm text-ink-soft">
-        {preview.member_count}{" "}
-        {preview.member_count === 1 ? "member" : "members"} · a season of
-        cinema, nominated and awarded together
+        {preview.curator_count} curator
+        {preview.curator_count === 1 ? "" : "s"} · {preview.critic_count} critic
+        {preview.critic_count === 1 ? "" : "s"} — a festival of cinema,
+        programmed and awarded together
       </p>
 
       <div className="mt-10">
-        {preview.at_capacity ? (
+        {criticSeats <= 0 && curatorSeats <= 0 ? (
           <p className="border border-rule bg-paper-raised p-4 text-sm leading-relaxed">
-            This guild is at capacity. Ask the guild president to make room, then
-            try the link again.
+            This guild is full — every curator and critic seat is taken. Ask the
+            president to make room, then try the link again.
           </p>
         ) : user ? (
-          <JoinGuildForm code={code} />
+          <>
+            <JoinGuildForm code={code} />
+            <p className="mt-5 text-xs leading-relaxed text-ink-faint">
+              {curatorSeats > 0
+                ? `${curatorSeats} curator seat${curatorSeats === 1 ? "" : "s"} left, and room for ${criticSeats} more critic${criticSeats === 1 ? "" : "s"}.`
+                : `Curator seats are full, but there is room for ${criticSeats} more critic${criticSeats === 1 ? "" : "s"}.`}
+            </p>
+          </>
         ) : (
           <div className="grid gap-3">
             <Link

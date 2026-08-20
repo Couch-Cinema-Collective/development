@@ -4,7 +4,14 @@ import { NextResponse, type NextRequest } from "next/server";
 import { isSupabaseConfigured, requireSupabaseCredentials } from "./config";
 
 /** Routes that require a signed-in member. Everything else stays public. */
-const PROTECTED_PREFIXES = ["/profile", "/commissioner", "/welcome", "/guild"];
+const PROTECTED_PREFIXES = [
+  "/profile",
+  "/festival",
+  "/dashboard",
+  "/nominate",
+  "/welcome",
+  "/guild",
+];
 
 /**
  * Runs in proxy.ts on every matched request. Refreshes the auth token if it

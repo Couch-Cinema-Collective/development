@@ -1,7 +1,7 @@
 import type { Film } from "../types";
 
 /**
- * Fixture catalog for the Season 3 "Hand-Drawn Animation" demo.
+ * Fixture catalog for the Festival 3 "Hand-Drawn Animation" demo.
  *
  * Shaped exactly like the normalized TMDB response (see lib/tmdb.ts), so the
  * live client is a drop-in replacement. Every id below was verified against the

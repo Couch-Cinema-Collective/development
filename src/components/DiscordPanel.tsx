@@ -11,7 +11,7 @@ import { DiscordGuide } from "./DiscordGuide";
  *  1. Link out to the guild's own server — trivial, and what most guilds want.
  *  2. Read the public widget.json — live presence and channel list. Rendered
  *     here in our own type rather than Discord's iframe, which fights the brand.
- *  3. Push season events into a channel via webhook — outbound only.
+ *  3. Push festival events into a channel via webhook — outbound only.
  *
  * Full two-way chat inside this page is not offered by Discord for external
  * sites. It would require a third-party relay (WidgetBot and similar), which
@@ -186,7 +186,7 @@ export function DiscordPanel({
           />
           <div className="sm:col-span-2">
             <Field
-              label="Webhook URL — season announcements"
+              label="Webhook URL — festival announcements"
               value={webhook}
               onChange={setWebhook}
               placeholder="https://discord.com/api/webhooks/…"
@@ -219,8 +219,8 @@ export function DiscordPanel({
             <div>
               <dt className="font-medium">What the webhook does</dt>
               <dd className="text-ink-faint">
-                Posts season events into the channel you choose: draft opening,
-                nominations locking, the slate, voting, and the winners.
+                Posts festival events into the channel you choose: nominations
+                opening, the lineup, each film&apos;s windows, and the winners.
               </dd>
             </div>
             <div>
@@ -240,8 +240,8 @@ export function DiscordPanel({
 
 const EVENTS = [
   { id: "test", label: "Test message" },
-  { id: "draft-open", label: "Draft opening" },
-  { id: "slate", label: "The slate" },
+  { id: "nominations-open", label: "Nominations opening" },
+  { id: "lineup", label: "The lineup" },
   { id: "winners", label: "The winners" },
 ] as const;
 

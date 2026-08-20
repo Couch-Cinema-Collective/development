@@ -1,7 +1,7 @@
-# Couch Cinema Collective — Prototype Plan
+# Couch Cinema Collective — Plan
 
-**Status:** decisions locked, ready to build
-**Target:** clickable Next.js prototype, four flows, live TMDB
+**Status:** festival model locked, built full-stack
+**Target:** Next.js app on Supabase, live TMDB
 
 ---
 
@@ -9,112 +9,100 @@
 
 **A film society with an awards night — not a fantasy league with a standings table.**
 
-The founding doc opens on a fantasy-football analogy, but the mechanics we've settled on deliberately strip out the game scaffolding: no invented point currency, no equity weighting, no anti-sweep rules. What's left is closer to a serious film club that happens to run on a season clock. Recognition comes from *awards your nominations won*, which is a fact about the season rather than a score we made up.
+The rhythm is borrowed from fantasy football (a weekly obligation you look forward to); everything else is deliberately a film club. Recognition comes from *the festival your pick won*, which is a fact about the run rather than a score we made up.
 
-This matches the brand — institutional, black/white/red, PBS-serious — better than a leaderboard would.
+**What changed from the season model.** The first build ran on five nomination points per member, a weighted slate algorithm, and one ballot at the end. That is gone. Curators now put up exactly one film each, the lineup is the roster, and the festival plays out film by film on a clock. The point-staking mechanic was fun to build and it made nominating a game, but it made the *festival* an abstraction — you voted once, months later, on a slate an algorithm cut. One film per curator is a harder commitment and a clearer stake.
 
 ---
 
 ## 1. Core mechanics
 
-### 1.1 One nomination round, with stacking ✅
+### 1.1 One curator, one film ✅
 
-Nominating and electing are the same act. Every member gets **5 nomination points** to distribute freely:
+Every curator nominates a single film. No points, no shortlist, no hedging. The lineup is exactly the set of curator picks, which means:
 
-- 5 films × 1 point — broad and hedged
-- 1 film × 5 points — all-in conviction bet
-- 3 / 1 / 1 — anything between
+- A guild of 8 curators runs an 8-film festival. Roster size *is* festival size.
+- No cut, no algorithm, no tie-break — nobody's pick can lose on a technicality because nothing competes at nomination time.
+- Who picked what stays hidden until the lineup is drawn (RLS, not UI), so nobody plays off anyone else's choice.
 
-Points sum across the guild. Duplicate titles merge into one pool entry; **the backend records every nominator and their stake**, which is what feeds award credits later. Highest totals fill the slate.
+Screening order is **shuffled** at lineup time. Going in nomination order would reward whoever filed first.
 
-The nomination pool shows point totals but **hides who nominated what until lock**. Hidden information is what makes the round a game rather than a survey.
+### 1.2 The two chairs ✅
 
-### 1.2 Slate algorithm — two terms
+| | Curator | Critic |
+|---|---|---|
+| Cap per guild | 4–12 (president included) | 50 |
+| Admission | President approves | Immediate |
+| Puts up a film | Yes, exactly one | No |
+| Watches, reviews, votes | Yes | Yes |
+| Eligible for Best of the Fest | Yes | No |
+| Eligible for Voice of the People | Yes | Yes |
+
+**Every curator is also a critic.** Curating is an addition to the critic's job, never a replacement — a curator watches, reviews, and upvotes on every film including their own.
+
+The president is the curator who founded the guild. They set the theme and the pace, approve curator seats, and drive the festival's transitions.
+
+### 1.3 The per-film cycle ✅
+
+This is the engine. Each film in the lineup runs the same three windows in turn:
 
 ```
-FilmScore = (w_guild  × normalized_nomination_points)
-          + (w_critic × normalized_external_score)
+VIEWING (14d) ──► REVIEWING (2d) ──► CRITICS_VOTING (24h) ──► CLOSED
 ```
 
-- **`w_guild`** — the guild's own conviction. Default **80%**.
-- **`w_critic`** — external critic opinion. Default **20%**, sourced from TMDB's `vote_average`. A licensed provider can be added behind the seam in §3.2.
+Then the next film opens. Defaults above; the president picks a preset (a week / a fortnight / a month per film).
 
-No drought term. Commissioner gets two sliders and a live preview of how the slate shifts as they drag. Defaults ship sane; nobody is forced to engage with it.
+- **Viewing** — watch it. Mark it off.
+- **Reviewing** — 200 characters, max. Late write-ups are welcome but flagged ineligible: you can still say your piece, you just can't be voted on.
+- **Critics voting** — reviews are revealed anonymously and each critic spends **exactly 3 upvotes**. Spend fewer and your own review stops being eligible to receive any. Participation is the price of competing.
+- **Closed** — authors revealed, best review highlighted.
 
-### 1.3 Award credits — a count, not a currency ✅
+**Nothing is stored as "current."** Phase is derived from timestamps, in Postgres (`screening_phase()`) and mirrored in TypeScript (`lib/lineup.ts`). No scheduled job has to tick anything over, and every client agrees without being told.
 
-When a film wins an award, **every member who nominated it is credited with that award.** Full credit to each nominator regardless of how many points they staked or how many others nominated the same film — weighting it would reintroduce the machinery we deliberately cut.
+### 1.4 Anonymity ✅
 
-Two surfaces:
+Reviews are anonymous until their film's voting window shuts — people should upvote the writing, not the writer. This can't be an RLS policy (Postgres has no conditional column masking), so reviews are read exclusively through `film_reviews()`, a security-definer function that withholds `user_id` and vote counts until `CLOSED`. Direct selects on `reviews` return your own rows only.
 
-**Ceremony close — this season's tally**
-```
-TONIGHT'S NOMINATORS
-  Jack     ●●●●   4 winners
-  Dev      ●●●    3 winners
-  Sarah    ●●     2 winners
-  Miller   ●      1 winner
-```
+### 1.5 Awards ✅
 
-**Profile — lifetime record**
-```
-JACK NAGEL          12 awards · 6 seasons
+**Best of the Fest is the only award that scores.** Winning it wins the festival for the curator who put the film up. A unique partial index enforces exactly one scoring award per festival.
 
-  BEST PICTURE      Toy Story          S3
-  BEST DIRECTOR     Spirited Away      S3
-  BEST EDITING      Akira              S2
-  ...
+Everything else is honorary — up to 12 categories, the president's choice, drawn from an Oscars-shaped catalog or invented outright. The app suggests witty names based on the theme family. Honorary wins show on a curator's profile and change nothing, which is the fun of them.
 
-  Most nominated director   Wes Anderson
-  Most nominated actor      Brad Pitt
-```
+**Voice of the People** is the critics' award: most upvotes earned across the whole festival. It is not on the ballot — it's counted from the upvote rows. Everyone is eligible, curators included.
 
-The profile-that-grows-over-time from the doc falls straight out of this — it's all derivable from stored nomination records.
+### 1.6 Sweeps allowed ✅
 
-### 1.4 Sweeps allowed ✅
+No cap on awards per film. With only one award that scores, a sweep costs nothing structurally and is true to how the Oscars actually go some years.
 
-No cap on awards per film. If the guild's favorite takes eleven of fifteen, that's a real result and true to how the Oscars actually go some years. With no points race to lopside, a sweep costs nothing structurally.
+### 1.7 Open vs closed festivals ✅
 
-### 1.5 Voting eligibility
-
-The doc's rule: *"If you don't finish the movies, you just don't get to vote."* Three commissioner-selectable levels:
-
-- **Honor system** (default) — self-attest per film
-- **Trakt-verified** — OAuth against real watch history (phase 2)
-- **Open** — anyone votes
-
-### 1.6 Guild size — hard cap at 50 ✅
-
-Enforced. Past ~50, popular films get nominated by so many people that individual picks stop mattering.
-
-*Consequence to revisit:* this blocks the large public leagues ("League of North America") the doc floats. Those would need a different structure — likely a separate tier with its own rules rather than a bigger guild.
-
-### 1.7 Ties — expand the slate ✅
-
-Two films tied for the last spot means the season runs seven films instead of six. Nobody's pick dies on a technicality, and nobody has to make an awkward call.
+The president chooses. **Closed** is invite-only by code. **Open** festivals are discoverable by any signed-in user and let strangers take a free curator seat up to the cap.
 
 ---
 
-## 2. Season state machine
+## 2. Festival state machine
 
 ```
-DRAFT ──► NOMINATING ──► TALLYING ──► SLATE_LOCKED ──► WATCHING
+DRAFT ──► RECRUITING ──► NOMINATING ──► LINEUP_SET ──► SCREENING
                                                           │
-                              ARCHIVED ◄── PUBLISHED ◄── VOTING
+                              ARCHIVED ◄── CEREMONY ◄── AWARDS_VOTING
 ```
 
 | State | What members see | Advanced by |
 |---|---|---|
-| `DRAFT` | Invite-only lobby | Commissioner |
-| `NOMINATING` | Countdown, 5 points to spend, live pool (nominators hidden) | Auto |
-| `TALLYING` | "Slate being calculated" | Auto |
-| `SLATE_LOCKED` | The films, nominators revealed, watch-provider links | Commissioner |
-| `WATCHING` | Progress checklist, per-film discussion | Auto |
-| `VOTING` | Ballot, one pick per award category | Auto |
-| `PUBLISHED` | Ceremony reveal, profiles updated | **Commissioner** |
-| `ARCHIVED` | Retrospective, next-season category vote | Auto |
+| `DRAFT` | Set up, not yet open | President |
+| `RECRUITING` | Seats filling | President |
+| `NOMINATING` | Countdown, one pick each, a filed-count with no titles | President |
+| `LINEUP_SET` | Lineup drawn, curators revealed, clock scheduled | President |
+| `SCREENING` | The dashboard: current film, its window, its countdown | **The clock** |
+| `AWARDS_VOTING` | Ballot, one pick per category | President |
+| `CEREMONY` | Reveal, then profiles update | **President** |
+| `ARCHIVED` | Retrospective | President |
 
-Per the doc: the commissioner sees results before publishing but **cannot alter them**. Publish is a release valve, not an edit. Built as a hard constraint from day one.
+The president sees results before publishing but **cannot alter them** — `publish_festival()` computes and writes winners inside Postgres, and there is no update path to `award_results`. Publish is a release valve, not an edit.
+
+**The president's UI is one button.** Whatever the festival is waiting on, and nothing else. Everything they *could* do later stays hidden until it's the thing to do. `SCREENING` deliberately has no button that does anything until the last film closes — the clock is doing the work and the right action is to leave it alone.
 
 ---
 
@@ -127,111 +115,86 @@ Proxied through Next.js route handlers so the key never reaches the browser. Ser
 - `/movie/{id}?append_to_response=credits,watch/providers` — metadata, cast, crew, *and* streaming availability in one call
 - Footer attribution: "This product uses the TMDB API but is not endorsed or certified by TMDB."
 
-**Until the key arrives:** falls back to TMDB-shaped fixtures on the same code path when `TMDB_API_KEY` is unset. Drop the key in `.env.local` and it's live — no rework.
+**Until the key arrives:** falls back to TMDB-shaped fixtures on the same code path when `TMDB_API_KEY` is unset.
 
 ### 3.2 External critic scores — none configured
-The critic term is TMDB's own `vote_average`. Nothing else is wired up.
+OMDb was removed on 2026-08-19: its CC BY-NC licence does not survive shipping under a limited company. The provider seam in `lib/scores.ts` is kept but nothing is wired to it. **Nothing in the festival model depends on a critic score** — the slate algorithm that consumed it is gone, and TMDB's `vote_average` is now shown for context only.
 
-OMDb was removed on 2026-08-19: its CC BY-NC licence does not survive shipping under a limited company. Building it behind a **provider interface** meant removal was deleting one implementation, not a redesign — every call site is untouched and `w_critic` falls back to TMDB.
-
-### 3.3 Trakt — phase 2
-OAuth watch verification (§1.5). Cross-references TMDB IDs, slots in cleanly.
+### 3.3 Trakt — deferred
+OAuth watch verification. Less useful than it was: eligibility is now enforced window by window rather than by a completion gate.
 
 ### 3.4 Wikipedia / Wikidata — wiki seeding
-CC0, no key. Director bios and movement definitions pulled as **starting drafts for hand-editing**. The doc is explicit that the wiki should feel crowdsourced, not machine-generated — never publish raw API text.
+CC0, no key. Director bios and movement definitions pulled as **starting drafts for hand-editing** — never publish raw API text.
 
 ### 3.5 Discord — webhooks only
-One webhook per guild, posting season events as rich embeds: draft opens, 24h warning, nominations locked, slate revealed, voting opens, winners published. 30 msg/min ceiling, far above our volume.
-
-**No in-app chat.** Discord has no embeddable widget for external sites, and members already have group texts and servers. Push events to where they already talk.
+One webhook per guild, posting festival events as rich embeds: nominations opening, the lineup reveal, each film's windows, winners. 30 msg/min ceiling, far above our volume. **No in-app chat.**
 
 ### 3.6 Letterboxd — CSV import
-No usable API. But every Letterboxd user can export their full diary and ratings, so an upload gives us the profile enrichment in §1.3 with no approval needed.
+No usable API, but every user can export their diary, so an upload gives profile enrichment with no approval needed.
 
-**Not viable, for the record:** IMDb official (~$150k/yr, AWS Data Exchange), Rotten Tomatoes direct (no self-serve, ~$60k/yr enterprise).
+**Not viable, for the record:** IMDb official (~$150k/yr), Rotten Tomatoes direct (~$60k/yr enterprise).
 
 ---
 
 ## 4. Screens
 
-### A. Commissioner season setup
-Four-step wizard: identity → format → awards → invite.
-- Guild name, season title, category picker (browse ~80 categories, or take the quiz)
-- Duration + film count, presets surfaced as one-click: **3mo / 6 films** (default), 1yr / 12 films, 2wk / 1 film rolling
-- Award toggles, capped at 15, Best Picture locked on, custom award creator
-- Two algorithm sliders with live slate preview
-- Invite link + Discord webhook
-- Member counter enforcing the 50 cap
+### A. Dashboard — *the centre of the app*
+The one question it answers: **what do I owe, and how long have I got?**
 
-### B. Nomination draft — *build first*
-- Prominent countdown to lock
-- TMDB search: poster, year, director, runtime, streaming availability
-- **5 point chips dragged onto films** — the stacking mechanic made physical
-- Live pool with totals, nominators concealed until lock
+- Current film, its phase, and a large countdown on whatever window is open
+- The single action that phase asks for — mark watched / file 200 characters / spend 3 upvotes — and nothing else
+- Standing: upvotes earned, reviews filed, films watched, festival awards
+- "Coming next" with the next film's opening countdown (title withheld — no reading ahead)
+- The lineup, with each film's phase and how far the festival has got
 
-### C. Voting + ceremony
-- **Ballot:** one card per category, slate films as options, eligibility gate up top
-- **Ceremony:** full-bleed Oscar-card reveal, one award per screen, black card / red accent / envelope beat. Closes on the nominator tally (§1.3).
+### B. Nomination
+One pick. TMDB search, theme catalog to browse, and a filed-count (`6 / 8 curators`) that never shows titles.
 
-**Delivery — all four wanted, but they don't all fit in phase 4:**
+### C. Ballot + ceremony
+- **Ballot:** one card per category, lineup films as options. Unwatched films get a nudge, not a lock.
+- **Ceremony:** full-bleed Oscar-card reveal, one award per screen, honorary first, Best of the Fest, then Voice of the People closing the night. Ends on the curator tally.
 
-| Mode | Phase | Why |
-|---|---|---|
-| Scrollable Oscar cards in-app | 4 | The core build; everything else derives from it |
-| Exportable PDF | 4 | Renders from the same card components |
-| Shareable result graphics | 4 | Same components at social dimensions |
-| **Live synced reveal** | **7** | Needs persistence + real-time transport, which don't exist yet (§7) |
+### D. Guild home
+The president's single next move up top, the curator approval queue under it, then one clear destination for everyone else. Roster split into curators and critics, because they're different jobs.
 
-The live reveal is the one that cannot be faked on fixtures: "everyone's screen advances together" requires shared server state and a websocket or polling channel. It is deferred to after the backend, not dropped.
+### E. Wiki / film school
+Theme pages: definition, legacy, 4 canonical examples with posters. Open to everyone, no membership required — top of funnel.
 
-### D. Wiki / film school
-- Category pages: definition, legacy, 4 canonical examples with posters
-- Director and movement pages
-- Open to everyone, no membership required — top of funnel
-
-### E. Profile
-Lifetime award record, most-nominated director/actor, seasons played. Grows from stored nomination data.
+### F. Profile
+Festivals won, Voice of the People wins, upvotes earned, and the full award list with the scoring one marked.
 
 ---
 
-## 5. Build order
+## 5. Build status
 
 | Phase | Work | Status |
 |---|---|---|
-| **0** | Next.js + Tailwind scaffold, design tokens, logo + pattern | ✅ Done |
-| **1** | Fixtures + TMDB client, season state machine, mock guild | ✅ Done — **live on real TMDB** |
-| **2** | Nomination draft (B) — point-chip mechanic | ✅ Done |
-| **3** | Commissioner setup (A) + weighting slider w/ live preview | ✅ Done |
-| **4** | Ballot + ceremony (C): in-app cards, PDF, share graphics | ✅ Done |
-| **4b** | In-season room: watch tracking + member reviews | ✅ Done |
-| **5** | Wiki (D) — all 65 categories, live TMDB exemplars | ✅ Done |
-| **6** | Discord panel (link-out + widget + webhook), deploy | Panel done; deploy next |
-| **7** | **Backend**: auth, database, persistence | See §7 |
-
-Live synced reveal is dropped, not deferred — Jack ruled out real-time.
-
-Phase 2 led deliberately: if dragging five points onto films isn't fun, better to learn that before building four screens around it.
-
----
-
-## 7. The backend fork
-
-Nothing persists. Every guild, member, season, and nomination is a fixture file;
-spending five points and refreshing loses them. That is correct for a prototype
-and wrong for anything a real club touches.
-
-Going real means auth, a database, working invite links, and a hosting decision —
-roughly a week, and worth holding until the full loop has been seen end to end.
-The live synced ceremony reveal depends on it.
+| **0** | Scaffold, design tokens, logo | ✅ |
+| **1** | Fixtures + TMDB client, mock guild | ✅ live TMDB |
+| **2** | Nomination | ✅ rebuilt for one-film-per-curator |
+| **3** | Festival setup wizard | ✅ rebuilt, sliders removed |
+| **4** | Ballot + ceremony | ✅ rebuilt for the two awards |
+| **4b** | **Dashboard + per-film cycle** | ✅ new |
+| **5** | Wiki — all 65 categories | ✅ |
+| **6** | Discord panel, deploy | ✅ |
+| **7** | Backend: auth, database, persistence | ✅ |
+| **8** | Festival model migration | ✅ `schema-06-festivals.sql` |
 
 ---
 
 ## 6. Deferred
 
-- Public/open leagues beyond 50 members — needs its own structure (§1.6)
-- Trakt watch verification
-- Letterboxd CSV import
-- The ~80-category library — 12 seeded, **the full list is Jack's to supply**
-- The category quiz and guild collections (two of the three category-picking paths)
-- Final award list and ceremony announcement order — **also Jack's to supply**
+- Public/open leagues beyond one guild — needs its own structure
+- Trakt watch verification; Letterboxd CSV import
+- The category quiz and guild collections
+- Gamified tiers (gold/silver/bronze critic) — the data is there in `critic_standings()`, the presentation is not
+- Live synced ceremony reveal — ruled out, needs real-time transport
 - Season-category vote during `ARCHIVED`
+
+---
+
+## 7. Open questions
+
+- **Cadence drift.** A president who sets a month per film and seats 12 curators has built a year-long festival. The wizard states the total length up front, but nothing stops it.
+- **Curator no-shows.** A curator who never files simply isn't in the lineup. The festival shrinks silently; there is no nudge and no penalty.
+- **The 3-upvote rule needs 4+ eligible reviews per film** to be satisfiable by everyone. Small or quiet guilds can deadlock into a round where nobody's review stays eligible.

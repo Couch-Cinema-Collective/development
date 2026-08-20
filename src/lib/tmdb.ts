@@ -161,7 +161,7 @@ interface TmdbKeywordResponse {
 }
 
 /**
- * A starting shelf for the draft's browse grid, matched to the season's
+ * A starting shelf for the nomination browse grid, matched to the festival's
  * category. Three passes, most precise first:
  *   1. official TMDB genre ("Animation", "Spaghetti Westerns" → Western)
  *   2. keyword discovery ("french new wave", "heist" — movements and themes)

@@ -7,7 +7,7 @@ import { isDeadToken, pushConfigured, sendPush, type PushMessage } from "./apns"
  * Send a push to every device belonging to a set of members.
  *
  * Uses the service-role client: sending is a server concern and the caller is
- * usually acting on behalf of a season, not a user.
+ * usually acting on behalf of a festival, not a user.
  */
 export async function notifyMembers(
   userIds: string[],
@@ -75,7 +75,7 @@ export async function notifyMembers(
   };
 }
 
-/** Everyone in a guild — the audience for every season beat. */
+/** Everyone in a guild — the audience for every festival beat. */
 export async function guildMemberIds(guildId: string): Promise<string[]> {
   const admin = createAdminClient();
   const { data } = await admin

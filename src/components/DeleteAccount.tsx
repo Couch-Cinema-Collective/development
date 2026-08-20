@@ -8,7 +8,7 @@ import { deleteAccount } from "@/app/profile/actions";
  * In-app account deletion (App Store guideline 5.1.1(v)).
  *
  * Two-step and type-to-confirm, because this is genuinely irreversible and a
- * mis-tap shouldn't cost someone three seasons of history.
+ * mis-tap shouldn't cost someone three festivals of history.
  */
 export function DeleteAccount() {
   const [open, setOpen] = useState(false);

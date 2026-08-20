@@ -2,10 +2,15 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Ballot } from "@/components/Ballot";
-import { getUserMemberships } from "@/lib/guilds";
+import { getCurrentFestival } from "@/lib/guilds";
 import { ceremonyOrder } from "@/lib/mock/awards";
+import { toLineup, type LineupRow } from "@/lib/lineup";
 import { createClient } from "@/lib/supabase/server";
-import type { AwardCategory, CastMember, Film } from "@/lib/types";
+import {
+  BEST_OF_THE_FEST,
+  type AwardCategory,
+  type CastMember,
+} from "@/lib/types";
 
 export default async function VotePage({
   searchParams,
@@ -20,20 +25,9 @@ export default async function VotePage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/vote");
 
-  const memberships = await getUserMemberships();
-  const guildIds = memberships.map((m) => m.guildId);
-  const { data: voting } = guildIds.length
-    ? await supabase
-        .from("seasons")
-        .select("id, guild_id, number, category, eligibility")
-        .in("guild_id", guildIds)
-        .eq("state", "VOTING")
-    : { data: [] };
+  const festival = await getCurrentFestival(["AWARDS_VOTING"], guildParam);
 
-  const season =
-    (voting ?? []).find((s) => s.guild_id === guildParam) ?? (voting ?? [])[0];
-
-  if (!season) {
+  if (!festival) {
     return (
       <main className="mx-auto max-w-3xl px-6 py-16">
         <p className="label-eyebrow">The Ballot</p>
@@ -41,52 +35,53 @@ export default async function VotePage({
           Voting isn&apos;t open
         </h1>
         <p className="mt-6 max-w-xl leading-relaxed text-ink-soft">
-          The ballot appears when your guild president opens voting. Until then,{" "}
-          <Link href="/season" className="underline hover:text-signal">
-            the season room
+          The ballot appears once every film has screened and your president
+          opens it. Until then,{" "}
+          <Link href="/dashboard" className="underline hover:text-signal">
+            your dashboard
           </Link>{" "}
-          is where to catch up on the slate.
+          has the film that&apos;s on.
         </p>
       </main>
     );
   }
 
-  const guildName =
-    memberships.find((m) => m.guildId === season.guild_id)?.guildName ?? "";
-
-  const [{ data: awardRows }, { data: slateRows }, { data: watchedRows }, { data: voteRows }] =
+  const [{ data: awardRows }, { data: lineupRows }, { data: watchedRows }, { data: voteRows }] =
     await Promise.all([
       supabase
-        .from("season_awards")
-        .select("award_id, name, tier")
-        .eq("season_id", season.id),
+        .from("festival_awards")
+        .select("award_id, name, tier, scoring")
+        .eq("festival_id", festival.id),
       supabase
-        .from("slate_films")
-        .select("tmdb_id, film")
-        .eq("season_id", season.id),
+        .from("lineup_films")
+        .select(
+          "tmdb_id, film, position, curator_id, viewing_starts_at, review_starts_at, voting_starts_at, closes_at",
+        )
+        .eq("festival_id", festival.id),
       supabase
         .from("watch_records")
         .select("tmdb_id")
-        .eq("season_id", season.id)
+        .eq("festival_id", festival.id)
         .eq("user_id", user.id),
       supabase
         .from("votes")
         .select("award_id, tmdb_id, person")
-        .eq("season_id", season.id)
+        .eq("festival_id", festival.id)
         .eq("user_id", user.id),
     ]);
 
-  // Announcement order: craft first, Best Picture last (§4C).
+  // Announcement order: honorary first, Best of the Fest last.
   const awards = ceremonyOrder(
     (awardRows ?? []).map(
       (a): AwardCategory => ({
         id: a.award_id,
         name: a.name,
         tier: a.tier as AwardCategory["tier"],
+        scoring: a.scoring,
       }),
     ),
   );
-  const slate = (slateRows ?? []).map((r) => r.film as Film);
+  const lineup = toLineup((lineupRows ?? []) as LineupRow[]);
   const initialBallot: Record<string, number> = {};
   const initialPerformers: Record<string, CastMember> = {};
   for (const v of voteRows ?? []) {
@@ -98,26 +93,25 @@ export default async function VotePage({
     <main className="mx-auto max-w-4xl px-6 py-12">
       <header className="border-b border-rule pb-8">
         <p className="label-eyebrow">
-          {guildName} · Season {season.number} · {season.category}
+          {festival.guildName} · Festival {festival.number} · {festival.theme}
         </p>
         <h1 className="mt-3 text-5xl font-medium uppercase leading-none tracking-tight">
           The Ballot
         </h1>
         <p className="mt-4 max-w-lg text-sm leading-relaxed text-ink-soft">
-          One vote per category. Announcement order follows the Oscars — craft
-          first, Best Picture last.
+          One vote per category. {BEST_OF_THE_FEST} is the one that settles the
+          festival — the rest are honorary, and announced first.
         </p>
       </header>
 
       <div className="mt-12">
         <Ballot
-          seasonId={season.id}
+          festivalId={festival.id}
           awards={awards}
-          slate={slate}
+          lineup={lineup.map((l) => l.film)}
           watchedIds={(watchedRows ?? []).map((w) => w.tmdb_id)}
           initialBallot={initialBallot}
           initialPerformers={initialPerformers}
-          honorGate={season.eligibility === "honor"}
         />
       </div>
     </main>

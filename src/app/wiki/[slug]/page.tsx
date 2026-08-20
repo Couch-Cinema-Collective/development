@@ -99,16 +99,16 @@ export default async function CategoryPage({
       )}
 
       <section className="mt-16 border border-ink bg-paper-raised px-6 py-6">
-        <p className="label-eyebrow">Run this as a season</p>
+        <p className="label-eyebrow">Run this as a festival</p>
         <p className="mt-2 max-w-lg text-sm leading-relaxed text-ink-soft">
           Set the clock, pick the awards, and let your guild nominate. Six films
           over three months is the recommended shape.
         </p>
         <Link
-          href="/commissioner/new"
+          href="/festival/new"
           className="mt-5 inline-block bg-ink px-6 py-3 text-xs uppercase tracking-[0.12em] text-paper transition-colors hover:bg-signal"
         >
-          Commission a season
+          Programme a festival
         </Link>
       </section>
     </main>

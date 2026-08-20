@@ -4,26 +4,43 @@ import { useCallback, useRef, useState } from "react";
 
 import { FilmPoster } from "./FilmPoster";
 import { isNative, shareImage } from "@/lib/native";
-import type { AwardResult, Film, Member } from "@/lib/types";
+import {
+  BEST_OF_THE_FEST,
+  VOICE_OF_THE_PEOPLE,
+  type AwardResult,
+  type Film,
+  type Member,
+} from "@/lib/types";
 
 interface CeremonyProps {
   results: AwardResult[];
   filmsById: Record<number, Film>;
   membersById: Record<string, Member>;
-  tally: { memberId: string; count: number }[];
-  seasonNumber: number;
-  seasonCategory: string;
+  /** Curators, ranked — the one who took Best of the Fest leads. */
+  tally: { memberId: string; count: number; wonBestOfTheFest: boolean }[];
+  /** The most-upvoted reviewer of the festival. Curators are eligible too. */
+  voiceOfThePeople: { memberId: string; upvotes: number } | null;
+  festivalNumber: number;
+  theme: string;
   guildName: string;
 }
 
 export function Ceremony(props: CeremonyProps) {
-  const { results, filmsById, membersById, tally, seasonNumber, seasonCategory, guildName } =
-    props;
+  const {
+    results,
+    filmsById,
+    membersById,
+    tally,
+    voiceOfThePeople,
+    festivalNumber,
+    theme,
+    guildName,
+  } = props;
 
   const [sharing, setSharing] = useState(false);
 
-  const names = useCallback(
-    (ids: string[]) => ids.map((id) => membersById[id]?.name ?? "Unknown"),
+  const nameOf = useCallback(
+    (id: string | null) => (id ? (membersById[id]?.name ?? "Unknown") : "—"),
     [membersById],
   );
 
@@ -35,10 +52,10 @@ export function Ceremony(props: CeremonyProps) {
         <section className="ceremony-card flex flex-col items-center justify-center text-center">
           <p className="label-eyebrow text-paper/50">{guildName}</p>
           <h1 className="mt-6 text-balance text-7xl font-medium uppercase leading-[0.9] tracking-tight text-paper sm:text-8xl">
-            {seasonCategory}
+            {theme}
           </h1>
           <p className="mt-8 text-sm uppercase tracking-[0.2em] text-paper/60">
-            Season {seasonNumber} · The Awards
+            Festival {festivalNumber} · The Awards
           </p>
           <p className="mt-16 text-xs text-paper/40">Scroll to begin</p>
         </section>
@@ -57,6 +74,11 @@ export function Ceremony(props: CeremonyProps) {
                 <div className="min-w-0">
                   <p className="text-xs uppercase tracking-[0.22em] text-signal">
                     {result.awardName}
+                    {result.scoring && (
+                      <span className="ml-3 text-paper/40">
+                        Decides the festival
+                      </span>
+                    )}
                   </p>
                   <p className="mt-5 text-xs uppercase tracking-[0.18em] text-paper/45">
                     The award goes to
@@ -69,9 +91,11 @@ export function Ceremony(props: CeremonyProps) {
                   </p>
 
                   <div className="mt-8 border-t border-paper/15 pt-5">
-                    <p className="label-eyebrow text-paper/40">Nominated by</p>
+                    <p className="label-eyebrow text-paper/40">
+                      Put up by
+                    </p>
                     <p className="mt-2 text-lg text-paper">
-                      {names(result.nominatorIds).join(" · ")}
+                      {nameOf(result.curatorId)}
                     </p>
                     <p className="mt-3 text-xs text-paper/40 tabular-nums">
                       {result.votes} of {result.totalVotes} votes
@@ -83,14 +107,34 @@ export function Ceremony(props: CeremonyProps) {
           );
         })}
 
+        {/* The critics' own award closes the night — counted from upvotes
+            earned across the festival, never voted on a ballot. */}
+        {voiceOfThePeople && (
+          <section className="ceremony-card flex flex-col items-center justify-center text-center">
+            <p className="text-xs uppercase tracking-[0.22em] text-signal">
+              {VOICE_OF_THE_PEOPLE}
+            </p>
+            <p className="mt-5 text-xs uppercase tracking-[0.18em] text-paper/45">
+              The sharpest writer of the festival
+            </p>
+            <h2 className="mt-4 text-balance text-6xl font-medium uppercase leading-[0.95] tracking-tight text-paper sm:text-7xl">
+              {membersById[voiceOfThePeople.memberId]?.name ?? "Unknown"}
+            </h2>
+            <p className="mt-6 text-sm text-paper/60 tabular-nums">
+              {voiceOfThePeople.upvotes} upvote
+              {voiceOfThePeople.upvotes === 1 ? "" : "s"} earned
+            </p>
+          </section>
+        )}
+
         <section className="ceremony-card">
           <div className="mx-auto w-full max-w-2xl">
             <p className="text-xs uppercase tracking-[0.22em] text-signal">
-              Tonight&apos;s nominators
+              Tonight&apos;s curators
             </p>
             <p className="mt-4 text-sm text-paper/55">
-              Every member who nominated a winning film is credited with that
-              award. No points, no weighting — a count.
+              Every curator is credited with the awards their film took. Only{" "}
+              {BEST_OF_THE_FEST} decides the festival — the rest are honours.
             </p>
 
             <ol className="mt-10 border-t border-paper/15">
@@ -101,6 +145,11 @@ export function Ceremony(props: CeremonyProps) {
                 >
                   <span className="min-w-0 flex-1 truncate text-2xl uppercase tracking-tight text-paper">
                     {membersById[row.memberId]?.name ?? "Unknown"}
+                    {row.wonBestOfTheFest && (
+                      <span className="ml-3 text-xs uppercase tracking-[0.18em] text-signal">
+                        Festival winner
+                      </span>
+                    )}
                   </span>
                   <span className="flex shrink-0 gap-1">
                     {Array.from({ length: row.count }).map((_, i) => (
@@ -121,9 +170,9 @@ export function Ceremony(props: CeremonyProps) {
         <SharePanel
           results={results}
           filmsById={filmsById}
-          names={names}
-          seasonNumber={seasonNumber}
-          seasonCategory={seasonCategory}
+          nameOf={nameOf}
+          festivalNumber={festivalNumber}
+          theme={theme}
           onClose={() => setSharing(false)}
         />
       )}
@@ -201,16 +250,16 @@ function wrap(
 function SharePanel({
   results,
   filmsById,
-  names,
-  seasonNumber,
-  seasonCategory,
+  nameOf,
+  festivalNumber,
+  theme,
   onClose,
 }: {
   results: AwardResult[];
   filmsById: Record<number, Film>;
-  names: (ids: string[]) => string[];
-  seasonNumber: number;
-  seasonCategory: string;
+  nameOf: (id: string | null) => string;
+  festivalNumber: number;
+  theme: string;
   onClose: () => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -238,7 +287,7 @@ function SharePanel({
     ctx.font = "500 26px Jost, sans-serif";
     ctx.letterSpacing = "5px";
     ctx.fillText(
-      `SEASON ${seasonNumber} · ${seasonCategory.toUpperCase()}`,
+      `FESTIVAL ${festivalNumber} · ${theme.toUpperCase()}`,
       pad,
       pad + 26,
     );
@@ -264,12 +313,12 @@ function SharePanel({
     ctx.fillStyle = "rgba(11,11,11,0.4)";
     ctx.font = "500 24px Jost, sans-serif";
     ctx.letterSpacing = "4px";
-    ctx.fillText("NOMINATED BY", pad, CARD - pad - 96);
+    ctx.fillText("PUT UP BY", pad, CARD - pad - 96);
 
     ctx.fillStyle = "#0b0b0b";
     ctx.font = "400 40px Jost, sans-serif";
     ctx.letterSpacing = "0px";
-    ctx.fillText(names(result.nominatorIds).join(" · "), pad, CARD - pad - 44);
+    ctx.fillText(nameOf(result.curatorId), pad, CARD - pad - 44);
 
     // Real lockup rather than a typed-out wordmark, bottom-right, height-locked.
     if (logo) {
@@ -284,7 +333,7 @@ function SharePanel({
       ctx.fillText("COUCH CINEMA COLLECTIVE", CARD - pad, CARD - pad - 44);
       ctx.textAlign = "left";
     }
-  }, [film, names, result, seasonCategory, seasonNumber]);
+  }, [film, nameOf, result, theme, festivalNumber]);
 
   const download = async () => {
     await draw();

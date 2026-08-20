@@ -41,8 +41,9 @@ function DiscordSettingsForm({ guildId }: { guildId: string }) {
   return (
     <div className="mt-8">
       <p className="max-w-lg text-sm leading-relaxed text-ink-soft">
-        Connect your guild&apos;s own Discord server and season announcements —
-        nominations opening, the slate reveal, voting, the ceremony — post
+        Connect your guild&apos;s own Discord server and festival announcements
+        — nominations opening, the lineup reveal, each film&apos;s windows, the
+        ceremony — post
         themselves. You&apos;ll need three things from Discord: your{" "}
         <strong>Server ID</strong>, an <strong>invite link</strong>, and a{" "}
         <strong>webhook URL</strong>.
@@ -142,28 +143,28 @@ const CHANNELS: { id: Channel; label: string; note: string }[] = [
 ];
 
 /**
- * The season's beats, as ready-to-send messages. Placeholders in [brackets]
+ * The festival's beats, as ready-to-send messages. Placeholders in [brackets]
  * are the sender's to fill — dates and links the app can't know yet.
  */
 function templates(guildName: string, categoryName: string) {
   const guild = guildName || "the guild";
-  const category = categoryName || "the season";
+  const category = categoryName || "the festival";
   return [
     {
       title: "Nominations open",
-      body: `🎬 ${guild} — the ${category} season is on. You have 5 nomination points to spend however you like. Get them in by [date]: [link]`,
+      body: `🎬 ${guild} — the ${category} festival is on. Curators: one film each, and whatever you put up is what we all watch. Get it in by [date]: [link]`,
     },
     {
-      title: "Halfway reminder",
-      body: `Halfway checkpoint for ${guild}: [n] films down, [n] to go. If you're behind, tonight's a good night for one. Your ballot only unlocks if you finish.`,
+      title: "Film opening",
+      body: `📽️ Film [n] of [n] is open for ${guild}: [title]. Watch it by [date], then you have two days to file 200 characters on it. Miss the window and you miss the round.`,
     },
     {
-      title: "Voting open",
-      body: `🗳️ The ballot is open for ${guild}. One pick per award — you have until [date]. Votes are secret until the ceremony: [link]`,
+      title: "Reviews open for voting",
+      body: `✍️ Reviews are in for [title] — all anonymous. You have 24 hours to spend your 3 upvotes. Spend all three or your own review drops out: [link]`,
     },
     {
       title: "Awards announcement",
-      body: `🏆 The envelopes open [date/time]. ${guild}'s ${category} season comes down to this — see you at the ceremony: [link]`,
+      body: `🏆 The envelopes open [date/time]. ${guild}'s ${category} festival comes down to Best of the Fest — see you at the ceremony: [link]`,
     },
   ];
 }
@@ -212,7 +213,7 @@ export function CommunicationStep({
         <div className="mt-8">
           <p className="max-w-lg text-sm leading-relaxed text-ink-soft">
             {channel === "text"
-              ? "No setup — run the season from the group chat. Each beat below opens as a ready-to-send text; fill in the [brackets] and hit send."
+              ? "No setup — run the festival from the group chat. Each beat below opens as a ready-to-send text; fill in the [brackets] and hit send."
               : "Each beat below opens a pre-written email; fill in the [brackets] and send it to the guild."}
           </p>
 

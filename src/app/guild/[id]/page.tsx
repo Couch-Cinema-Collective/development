@@ -2,24 +2,73 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { CopyButton } from "@/components/CopyButton";
-import { SeasonControls } from "@/components/SeasonControls";
-import { getGuildHome, getGuildSeasons } from "@/lib/guilds";
+import { Countdown } from "@/components/Countdown";
+import { CuratorQueue } from "@/components/CuratorQueue";
+import { PresidentPanel } from "@/components/PresidentPanel";
+import { getGuildFestivals, getGuildHome } from "@/lib/guilds";
 import { createClient } from "@/lib/supabase/server";
-import type { Film } from "@/lib/types";
+import { isCurator, MAX_CRITICS } from "@/lib/types";
 
-/** Member-facing label per season state (PLAN.md §2). */
+/** Member-facing label per festival state. */
 const STATE_LABELS: Record<string, string> = {
   DRAFT: "Setting up",
-  NOMINATING: "Nominating now",
-  TALLYING: "Slate being calculated",
-  SLATE_LOCKED: "Slate locked",
-  WATCHING: "Watching",
-  VOTING: "Voting open",
-  PUBLISHED: "Ceremony published",
+  RECRUITING: "Recruiting",
+  NOMINATING: "Nominations open",
+  LINEUP_SET: "Lineup set",
+  SCREENING: "Screening",
+  AWARDS_VOTING: "Awards voting",
+  CEREMONY: "Ceremony published",
   ARCHIVED: "Archived",
 };
 
-/** Guild home: the left rail is the season's navigation (design review). */
+/**
+ * Where a member goes from here, given what the festival is doing. One
+ * destination, not a menu — the rail of four half-lit links it replaces made
+ * every member work out which surface was live.
+ */
+function memberAction(
+  state: string | undefined,
+  guildId: string,
+  curator: boolean,
+): { href: string; label: string; note: string } | null {
+  switch (state) {
+    case "NOMINATING":
+      return curator
+        ? {
+            href: `/nominate?guild=${guildId}`,
+            label: "Put your film up",
+            note: "Nominations are open — one film, your pick.",
+          }
+        : {
+            href: `/guild/${guildId}`,
+            label: "",
+            note: "Curators are choosing. Your part starts when the first film opens.",
+          };
+    case "LINEUP_SET":
+    case "SCREENING":
+      return {
+        href: `/dashboard?guild=${guildId}`,
+        label: "Go to your dashboard",
+        note: "Watch, review, and vote — the clock is running.",
+      };
+    case "AWARDS_VOTING":
+      return {
+        href: `/vote?guild=${guildId}`,
+        label: "Cast your ballot",
+        note: "One pick per award. Best of the Fest decides it.",
+      };
+    case "CEREMONY":
+    case "ARCHIVED":
+      return {
+        href: `/ceremony?guild=${guildId}`,
+        label: "See the results",
+        note: "The envelopes are open.",
+      };
+    default:
+      return null;
+  }
+}
+
 export default async function GuildPage({
   params,
 }: {
@@ -37,260 +86,170 @@ export default async function GuildPage({
   // Not a member (or no such guild) — RLS returns nothing either way.
   if (!guild) redirect("/welcome");
 
-  const seasons = await getGuildSeasons(id);
-  const current = seasons.find(
-    (s) => s.state !== "ARCHIVED" && s.state !== "PUBLISHED",
+  const festivals = await getGuildFestivals(id);
+  const current = festivals.find(
+    (f) => f.state !== "ARCHIVED" && f.state !== "CEREMONY",
   );
-  const finished = seasons.filter(
-    (s) => s.state === "PUBLISHED" || s.state === "ARCHIVED",
+  const finished = festivals.filter(
+    (f) => f.state === "CEREMONY" || f.state === "ARCHIVED",
   );
 
-  // The slate, once it exists for the running season.
-  const slateVisible =
-    current && ["SLATE_LOCKED", "WATCHING", "VOTING"].includes(current.state);
-  const { data: slateRows } = slateVisible
-    ? await supabase
-        .from("slate_films")
-        .select("tmdb_id, film")
-        .eq("season_id", current.id)
-    : { data: null };
-  const slate = (slateRows ?? []).map((r) => r.film as Film);
-
-  const president = guild.role === "commissioner";
-
-  const rail = [
-    {
-      label: "The Draft",
-      href: `/draft?guild=${guild.id}`,
-      live: current?.state === "NOMINATING",
-      note: "Nominate",
-    },
-    {
-      label: "In Season",
-      href: `/season?guild=${guild.id}`,
-      live:
-        !!current &&
-        ["SLATE_LOCKED", "WATCHING", "VOTING"].includes(current.state),
-      note: "Watch & review",
-    },
-    {
-      label: "The Ballot",
-      href: `/vote?guild=${guild.id}`,
-      live: current?.state === "VOTING",
-      note: "Vote",
-    },
-    {
-      label: "The Ceremony",
-      href: `/ceremony?guild=${guild.id}`,
-      live: finished.length > 0,
-      note: "Results",
-    },
-  ];
+  const president = guild.role === "president";
+  const curator = isCurator(guild.role);
+  const action = memberAction(current?.state, guild.id, curator);
+  const seatsLeft = guild.maxCurators - guild.curators.length;
 
   // Invite links always carry the canonical domain (design decision) — a
   // link copied during local dev must still work for the person receiving it.
   const inviteUrl = `https://www.couchcinemacollective.com/join/${guild.inviteCode}`;
 
   return (
-    <main className="mx-auto max-w-6xl px-6 py-12">
+    <main className="mx-auto max-w-5xl px-6 py-12">
       <header className="border-b border-rule pb-8">
         <p className="label-eyebrow">
-          {president ? "Your guild · President" : "Your guild"}
+          {president ? "Your guild · President" : `Your guild · ${curator ? "Curator" : "Critic"}`}
         </p>
         <h1 className="mt-3 text-5xl font-medium uppercase leading-none tracking-tight">
           {guild.name}
         </h1>
+        {current && (
+          <p className="mt-4 text-sm text-ink-soft">
+            Festival {current.number} · {current.theme} ·{" "}
+            {STATE_LABELS[current.state] ?? current.state}
+          </p>
+        )}
       </header>
 
-      <div className="mt-10 grid gap-12 lg:grid-cols-[220px_1fr]">
-        {/* Season navigation rail — the flow lives here, not in the top nav. */}
-        <aside className="lg:sticky lg:top-8 lg:self-start">
-          <p className="label-eyebrow border-b border-rule pb-2">
-            {current
-              ? `Season ${current.number} · ${current.category}`
-              : "Between seasons"}
-          </p>
-          <ul className="mt-1">
-            {rail.map((item) => (
-              <li key={item.label} className="border-b border-rule">
-                {item.live ? (
-                  <Link
-                    href={item.href}
-                    className="group flex items-baseline justify-between gap-3 py-3.5 transition-colors hover:text-signal"
-                  >
-                    <span className="text-sm font-medium uppercase tracking-tight">
-                      {item.label}
-                    </span>
-                    <span className="label-eyebrow group-hover:text-signal">
-                      {item.note}
-                    </span>
-                  </Link>
-                ) : (
-                  <span className="flex items-baseline justify-between gap-3 py-3.5 opacity-35">
-                    <span className="text-sm uppercase tracking-tight">
-                      {item.label}
-                    </span>
-                    <span className="label-eyebrow">{item.note}</span>
-                  </span>
-                )}
+      <div className="mt-10 space-y-10">
+        {/* ── The president's single next move ───────────────────────────── */}
+        {president && current && (
+          <PresidentPanel
+            festivalId={current.id}
+            state={current.state}
+            deadline={current.nominationDeadline}
+          />
+        )}
+
+        {president && !current && (
+          <section className="border border-ink bg-paper-raised p-6">
+            <p className="label-eyebrow text-signal">Your move</p>
+            <p className="mt-2 text-2xl font-medium uppercase leading-tight tracking-tight">
+              {festivals.length === 0
+                ? "Programme your first festival"
+                : "No festival running"}
+            </p>
+            <p className="mt-3 max-w-lg text-sm leading-relaxed text-ink-soft">
+              Pick a theme, set the pace, name the awards. Your curators put one
+              film up each, and the lineup follows from that.
+            </p>
+            <Link
+              href={`/festival/new?guild=${guild.id}`}
+              className="mt-6 inline-block bg-signal px-7 py-3.5 text-sm font-medium uppercase tracking-[0.14em] text-paper transition-colors hover:bg-ink"
+            >
+              {festivals.length === 0 ? "Programme it" : "Open the next one"}
+            </Link>
+          </section>
+        )}
+
+        {president && guild.pending.length > 0 && (
+          <CuratorQueue
+            guildId={guild.id}
+            pending={guild.pending}
+            seatsLeft={seatsLeft}
+          />
+        )}
+
+        {/* ── What this member does next ─────────────────────────────────── */}
+        {action && (
+          <section className="border border-rule bg-paper-raised p-6">
+            <p className="label-eyebrow">
+              {president ? "As a member" : "What's next"}
+            </p>
+            {action.label ? (
+              <>
+                <Link
+                  href={action.href}
+                  className="mt-3 inline-block text-3xl font-medium uppercase leading-none tracking-tight underline decoration-1 underline-offset-[6px] transition-colors hover:text-signal"
+                >
+                  {action.label}
+                </Link>
+                <p className="mt-3 text-sm text-ink-soft">{action.note}</p>
+              </>
+            ) : (
+              <p className="mt-3 text-sm text-ink-soft">{action.note}</p>
+            )}
+
+            {current?.state === "NOMINATING" && current.nominationDeadline && (
+              <div className="mt-6 border-t border-rule pt-5">
+                <p className="label-eyebrow">Nominations close in</p>
+                <div className="mt-2">
+                  <Countdown
+                    deadline={current.nominationDeadline}
+                    expiredLabel="Nominations closed"
+                    size="small"
+                  />
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ── Invites ────────────────────────────────────────────────────── */}
+        {president && (
+          <section className="border border-rule bg-paper-raised p-6">
+            <h2 className="label-eyebrow">Invite</h2>
+            <div className="mt-4 flex flex-wrap items-center gap-4">
+              <code className="min-w-0 flex-1 break-all text-sm">
+                {inviteUrl}
+              </code>
+              <CopyButton text={inviteUrl} />
+            </div>
+            <p className="mt-4 text-xs leading-relaxed text-ink-faint">
+              Anyone with this link joins as a critic straight away. Applying
+              for a curator seat comes to you for approval —{" "}
+              {seatsLeft > 0
+                ? `${seatsLeft} of ${guild.maxCurators} still free.`
+                : `all ${guild.maxCurators} are taken.`}
+            </p>
+          </section>
+        )}
+
+        {/* ── The roster, split by what people actually do ───────────────── */}
+        <section>
+          <h2 className="label-eyebrow border-b border-rule pb-2">
+            Curators · {guild.curators.length} of {guild.maxCurators}
+          </h2>
+          <ul className="mt-4 grid gap-px border border-rule bg-rule">
+            {guild.curators.map((m) => (
+              <li
+                key={m.userId}
+                className="flex items-baseline justify-between gap-6 bg-paper-raised px-6 py-4"
+              >
+                <span className="font-medium">
+                  {m.fullName}
+                  {m.userId === user.id && (
+                    <span className="ml-2 text-xs text-ink-faint">(you)</span>
+                  )}
+                </span>
+                <span className="label-eyebrow">
+                  {m.role === "president" ? "President" : "Curator"}
+                </span>
               </li>
             ))}
           </ul>
-          {current && (
-            <p className="mt-3 text-xs leading-relaxed text-ink-faint">
-              {STATE_LABELS[current.state] ?? current.state}
-              {current.state === "NOMINATING" &&
-                current.nominationDeadline &&
-                ` · locks ${new Date(current.nominationDeadline).toLocaleDateString("en-US", { month: "long", day: "numeric" })}`}
-            </p>
-          )}
-        </aside>
+          <p className="mt-3 text-xs text-ink-faint">
+            One film each, so the lineup runs to {guild.curators.length} film
+            {guild.curators.length === 1 ? "" : "s"}.
+          </p>
+        </section>
 
-        <div className="min-w-0">
-          {/* Setup before invites: the link stays back until a season exists. */}
-          {president && seasons.length === 0 && (
-            <section className="border border-ink bg-paper-raised p-6">
-              <p className="label-eyebrow text-signal">First things first</p>
-              <h2 className="mt-2 text-2xl font-medium uppercase tracking-tight">
-                Set up your season
-              </h2>
-              <p className="mt-3 max-w-lg text-sm leading-relaxed text-ink-soft">
-                Pick the category, the awards, and the pace before anyone
-                joins — your invite link unlocks here the moment the season
-                opens, so members arrive with something to nominate.
-              </p>
-              <Link
-                href={`/commissioner/new?guild=${guild.id}`}
-                className="mt-6 inline-block bg-signal px-7 py-3.5 text-sm font-medium uppercase tracking-[0.14em] text-paper transition-colors hover:bg-ink"
-              >
-                Set Up the Season
-              </Link>
-            </section>
-          )}
-
-          {president && seasons.length > 0 && (
-            <section className="border border-rule bg-paper-raised p-6">
-              <h2 className="label-eyebrow">Invite your members</h2>
-              <div className="mt-4 flex flex-wrap items-center gap-4">
-                <code className="min-w-0 flex-1 break-all text-sm">
-                  {inviteUrl}
-                </code>
-                <CopyButton text={inviteUrl} />
-              </div>
-              <p className="mt-4 text-xs leading-relaxed text-ink-faint">
-                Anyone with this link can join until the guild hits its{" "}
-                {guild.maxMembers}-member cap.
-              </p>
-            </section>
-          )}
-
-          <section className={president ? "mt-10" : ""}>
-            <h2 className="label-eyebrow border-b border-rule pb-2">Season</h2>
-
-            {current ? (
-              <div className="mt-4 border border-ink bg-paper-raised p-6">
-                <p className="label-eyebrow text-signal">
-                  {STATE_LABELS[current.state] ?? current.state}
-                </p>
-                <h3 className="mt-2 text-3xl font-medium uppercase leading-none tracking-tight">
-                  Season {current.number} · {current.category}
-                </h3>
-                <p className="mt-3 text-sm text-ink-soft">
-                  {current.filmCount} films on the slate
-                  {current.state === "NOMINATING" &&
-                    current.nominationDeadline && (
-                      <>
-                        {" "}
-                        · nominations lock{" "}
-                        {new Date(
-                          current.nominationDeadline,
-                        ).toLocaleDateString("en-US", {
-                          month: "long",
-                          day: "numeric",
-                        })}
-                      </>
-                    )}
-                </p>
-
-                {slate.length > 0 && (
-                  <div className="mt-6">
-                    <p className="label-eyebrow">The slate</p>
-                    <ul className="mt-3 grid gap-1.5">
-                      {slate.map((film) => (
-                        <li
-                          key={film.id}
-                          className="flex items-baseline gap-3 text-sm"
-                        >
-                          <span className="font-medium tracking-tight">
-                            {film.title}
-                          </span>
-                          <span className="text-xs text-ink-faint">
-                            {film.year}
-                            {film.director ? ` · ${film.director}` : ""}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {president && (
-                  <SeasonControls
-                    seasonId={current.id}
-                    state={current.state}
-                    deadline={current.nominationDeadline}
-                  />
-                )}
-              </div>
-            ) : president ? (
-              <p className="mt-4 max-w-xl text-sm leading-relaxed text-ink-soft">
-                {seasons.length === 0 ? (
-                  "Your first season is waiting — set it up above."
-                ) : (
-                  <>
-                    No season running.{" "}
-                    <Link
-                      href={`/commissioner/new?guild=${guild.id}`}
-                      className="underline hover:text-signal"
-                    >
-                      Open the next one
-                    </Link>{" "}
-                    — pick the category, the awards, and open nominations.
-                  </>
-                )}
-              </p>
-            ) : (
-              <p className="mt-4 max-w-xl text-sm leading-relaxed text-ink-soft">
-                No season running yet — your guild president opens the next
-                one.
-              </p>
-            )}
-
-            {finished.length > 0 && (
-              <ul className="mt-6 grid gap-px border border-rule bg-rule">
-                {finished.map((s) => (
-                  <li
-                    key={s.id}
-                    className="flex items-baseline justify-between gap-6 bg-paper-raised px-6 py-4"
-                  >
-                    <span className="font-medium uppercase tracking-tight">
-                      Season {s.number} · {s.category}
-                    </span>
-                    <span className="label-eyebrow">
-                      {STATE_LABELS[s.state]}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          <section className="mt-12">
-            <h2 className="label-eyebrow border-b border-rule pb-2">
-              Roster · {guild.roster.length} of {guild.maxMembers}
-            </h2>
+        <section>
+          <h2 className="label-eyebrow border-b border-rule pb-2">
+            Critics · {guild.critics.length} of {guild.maxCritics || MAX_CRITICS}
+          </h2>
+          {guild.critics.length > 0 ? (
             <ul className="mt-4 grid gap-px border border-rule bg-rule">
-              {guild.roster.map((m) => (
+              {guild.critics.map((m) => (
                 <li
                   key={m.userId}
                   className="flex items-baseline justify-between gap-6 bg-paper-raised px-6 py-4"
@@ -301,14 +260,42 @@ export default async function GuildPage({
                       <span className="ml-2 text-xs text-ink-faint">(you)</span>
                     )}
                   </span>
-                  <span className="label-eyebrow">
-                    {m.role === "commissioner" ? "President" : "Member"}
-                  </span>
+                  <span className="label-eyebrow">Critic</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-4 max-w-xl text-sm leading-relaxed text-ink-soft">
+              No critics beyond the curators yet. The voting body can run to{" "}
+              {guild.maxCritics || MAX_CRITICS} — share the invite link.
+            </p>
+          )}
+        </section>
+
+        {finished.length > 0 && (
+          <section>
+            <h2 className="label-eyebrow border-b border-rule pb-2">
+              Past festivals
+            </h2>
+            <ul className="mt-4 grid gap-px border border-rule bg-rule">
+              {finished.map((f) => (
+                <li key={f.id} className="bg-paper-raised">
+                  <Link
+                    href={`/ceremony?guild=${guild.id}`}
+                    className="flex items-baseline justify-between gap-6 px-6 py-4 transition-colors hover:bg-paper"
+                  >
+                    <span className="font-medium uppercase tracking-tight">
+                      Festival {f.number} · {f.theme}
+                    </span>
+                    <span className="label-eyebrow">
+                      {STATE_LABELS[f.state]}
+                    </span>
+                  </Link>
                 </li>
               ))}
             </ul>
           </section>
-        </div>
+        )}
       </div>
     </main>
   );

@@ -1,14 +1,14 @@
 import "server-only";
 
-import type { AwardResult, Film, Season } from "./types";
+import { BEST_OF_THE_FEST, type AwardResult, type Festival, type Film } from "./types";
 
 /**
- * Outbound season announcements (PLAN.md §3.5).
+ * Outbound festival announcements (PLAN.md §3.5).
  *
  * The webhook URL is a bearer credential — anyone holding it can post to the
  * channel — so it stays server-side and is never returned to the browser.
  * Discord allows ~30 messages/min per webhook; we send single-digit numbers per
- * season, so no queueing is warranted.
+ * festival, so no queueing is warranted.
  */
 
 const BRAND_RED = 0xe62b24;
@@ -44,48 +44,56 @@ async function post(embed: Embed): Promise<{ ok: boolean; error?: string }> {
   }
 }
 
-export function announceDraftOpen(season: Season, guildName: string) {
+export function announceNominationsOpen(festival: Festival, guildName: string) {
   return post({
-    title: `Season ${season.number} — ${season.category}`,
+    title: `Festival ${festival.number} — ${festival.theme}`,
     description:
-      "Nominations are open. You have five points to spend. Stack them on one film or spread them across five.",
+      "Nominations are open. Curators: one film each, and the lineup is whatever you put up.",
     color: BRAND_RED,
     fields: [
-      { name: "Films", value: String(season.filmCount), inline: true },
-      { name: "Awards", value: String(season.awards.length), inline: true },
-      {
-        name: "Locks",
-        value: `<t:${Math.floor(new Date(season.nominationDeadline).getTime() / 1000)}:R>`,
-        inline: true,
-      },
+      { name: "Awards", value: String(festival.awards.length), inline: true },
+      ...(festival.nominationDeadline
+        ? [
+            {
+              name: "Closes",
+              value: `<t:${Math.floor(new Date(festival.nominationDeadline).getTime() / 1000)}:R>`,
+              inline: true,
+            },
+          ]
+        : []),
     ],
     footer: { text: guildName },
   });
 }
 
-export function announceSlate(season: Season, slate: Film[], guildName: string) {
+export function announceLineup(
+  festival: Festival,
+  lineup: Film[],
+  guildName: string,
+) {
   return post({
-    title: `The slate is set — ${season.category}`,
-    description: slate
+    title: `The lineup is set — ${festival.theme}`,
+    description: lineup
       .map((film, i) => `**${i + 1}.** ${film.title} *(${film.year})*`)
       .join("\n"),
     color: BRAND_RED,
-    footer: { text: `${guildName} · Season ${season.number}` },
+    footer: { text: `${guildName} · Festival ${festival.number}` },
   });
 }
 
 export function announceWinners(
-  season: Season,
+  festival: Festival,
   results: AwardResult[],
   filmsById: Record<number, Film>,
   guildName: string,
 ) {
-  const picture = results.find((r) => r.awardId === "picture");
+  // Best of the Fest is the headline; the honorary awards fill the fields.
+  const best = results.find((r) => r.scoring);
 
   return post({
-    title: `Season ${season.number} — the winners`,
-    description: picture
-      ? `**Best Picture: ${filmsById[picture.filmId]?.title ?? "—"}**`
+    title: `Festival ${festival.number} — the winners`,
+    description: best
+      ? `**${BEST_OF_THE_FEST}: ${filmsById[best.filmId]?.title ?? "—"}**`
       : undefined,
     color: BRAND_RED,
     fields: results.slice(0, 25).map((result) => ({
@@ -101,7 +109,7 @@ export function announceTest(guildName: string) {
   return post({
     title: "Connected",
     description:
-      "Couch Cinema Collective will post season announcements here — draft opening, nominations locking, the slate, voting, and the winners.",
+      "Couch Cinema Collective will post festival announcements here — nominations opening, the lineup, each film's windows, and the winners.",
     color: BRAND_RED,
     footer: { text: guildName },
   });

@@ -24,7 +24,7 @@ export default function WikiPage() {
           Film Collection
         </h1>
         <p className="mt-5 max-w-xl text-sm leading-relaxed text-ink-soft">
-          Every category a season can be built from, with a plain definition and
+          Every theme a festival can be built from, with a plain definition and
           four films that demonstrate it. Not a ranking — a starting point.
         </p>
         <p className="mt-3 text-xs text-ink-faint">

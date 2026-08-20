@@ -13,7 +13,7 @@ export interface DiscordSettings {
 export type DiscordActionResult = { error?: string; ok?: boolean };
 
 /**
- * Store a guild's Discord wiring. Commissioner-only: RLS on `guilds` already
+ * Store a guild's Discord wiring. President-only: RLS on `guilds` already
  * enforces that, so a failed update means the caller wasn't one.
  *
  * The webhook is a credential and is written but never read back to the
@@ -63,11 +63,11 @@ export async function saveDiscordSettings(
 
   if (error) {
     return {
-      error: "Couldn't save that — only the commissioner can change guild settings.",
+      error: "Couldn't save that — only the president can change guild settings.",
     };
   }
 
   revalidatePath(`/guild/${guildId}`);
-  revalidatePath("/season");
+  revalidatePath("/dashboard");
   return { ok: true };
 }

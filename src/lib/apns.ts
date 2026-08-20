@@ -7,7 +7,7 @@ import http2 from "node:http2";
 /**
  * Apple Push Notification service.
  *
- * Season deadlines are the reason this app is worth having on a phone — and
+ * Festival deadlines are the reason this app is worth having on a phone — and
  * native capability like this is also what keeps the iOS build the right side
  * of App Store guideline 4.2.
  *
@@ -72,7 +72,7 @@ function bearerToken(): string {
 export interface PushMessage {
   title: string;
   body: string;
-  /** Deep path opened on tap, e.g. "/draft". */
+  /** Deep path opened on tap, e.g. "/dashboard". */
   path?: string;
 }
 

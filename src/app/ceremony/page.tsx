@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Ceremony } from "@/components/Ceremony";
-import { getUserMemberships } from "@/lib/guilds";
+import { getCurrentFestival } from "@/lib/guilds";
 import { ceremonyOrder } from "@/lib/mock/awards";
 import { createClient } from "@/lib/supabase/server";
 import type { AwardCategory, AwardResult, Film, Member } from "@/lib/types";
@@ -20,22 +20,12 @@ export default async function CeremonyPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/ceremony");
 
-  const memberships = await getUserMemberships();
-  const guildIds = memberships.map((m) => m.guildId);
-  const { data: published } = guildIds.length
-    ? await supabase
-        .from("seasons")
-        .select("id, guild_id, number, category")
-        .in("guild_id", guildIds)
-        .in("state", ["PUBLISHED", "ARCHIVED"])
-        .order("number", { ascending: false })
-    : { data: [] };
+  const festival = await getCurrentFestival(
+    ["CEREMONY", "ARCHIVED"],
+    guildParam,
+  );
 
-  const season =
-    (published ?? []).find((s) => s.guild_id === guildParam) ??
-    (published ?? [])[0];
-
-  if (!season) {
+  if (!festival) {
     return (
       <main className="mx-auto max-w-3xl px-6 py-16">
         <p className="label-eyebrow">The Ceremony</p>
@@ -43,8 +33,8 @@ export default async function CeremonyPage({
           No envelope yet
         </h1>
         <p className="mt-6 max-w-xl leading-relaxed text-ink-soft">
-          The ceremony plays here once your guild president publishes a season&apos;s
-          results. Until then, the suspense is the point —{" "}
+          The ceremony plays here once your president publishes the results.
+          Until then, the suspense is the point —{" "}
           <Link href="/vote" className="underline hover:text-signal">
             cast your ballot
           </Link>{" "}
@@ -54,33 +44,25 @@ export default async function CeremonyPage({
     );
   }
 
-  const guildName =
-    memberships.find((m) => m.guildId === season.guild_id)?.guildName ?? "";
-
   const [
     { data: resultRows },
     { data: awardRows },
-    { data: slateRows },
-    { data: nominationRows },
+    { data: lineupRows },
+    { data: standings },
   ] = await Promise.all([
     supabase
       .from("award_results")
-      .select("award_id, tmdb_id, votes, total_votes")
-      .eq("season_id", season.id),
+      .select("award_id, tmdb_id, votes, total_votes, curator_id")
+      .eq("festival_id", festival.id),
     supabase
-      .from("season_awards")
-      .select("award_id, name, tier")
-      .eq("season_id", season.id),
+      .from("festival_awards")
+      .select("award_id, name, tier, scoring")
+      .eq("festival_id", festival.id),
     supabase
-      .from("slate_films")
-      .select("tmdb_id, film")
-      .eq("season_id", season.id),
-    // Post-publish, RLS reveals every nomination — this is what turns
-    // winners into nominator credits (§1.3).
-    supabase
-      .from("nominations")
-      .select("tmdb_id, user_id")
-      .eq("season_id", season.id),
+      .from("lineup_films")
+      .select("tmdb_id, film, curator_id")
+      .eq("festival_id", festival.id),
+    supabase.rpc("critic_standings", { fid: festival.id }),
   ]);
 
   const awardsInOrder = ceremonyOrder(
@@ -89,18 +71,11 @@ export default async function CeremonyPage({
         id: a.award_id,
         name: a.name,
         tier: a.tier as AwardCategory["tier"],
+        scoring: a.scoring,
       }),
     ),
   );
   const resultByAward = new Map((resultRows ?? []).map((r) => [r.award_id, r]));
-
-  const nominatorsOf = (tmdbId: number) => [
-    ...new Set(
-      (nominationRows ?? [])
-        .filter((n) => n.tmdb_id === tmdbId)
-        .map((n) => n.user_id),
-    ),
-  ];
 
   const results: AwardResult[] = awardsInOrder.flatMap((award) => {
     const row = resultByAward.get(award.id);
@@ -112,37 +87,70 @@ export default async function CeremonyPage({
         filmId: row.tmdb_id,
         votes: row.votes,
         totalVotes: row.total_votes,
-        nominatorIds: nominatorsOf(row.tmdb_id),
+        scoring: award.scoring ?? false,
+        curatorId: row.curator_id,
       },
     ];
   });
 
   const filmsById = Object.fromEntries(
-    (slateRows ?? []).map((r) => [r.tmdb_id, r.film as Film]),
+    (lineupRows ?? []).map((r) => [r.tmdb_id, r.film as Film]),
   );
 
-  // Member names for credits and the closing tally.
-  const memberIds = [...new Set((nominationRows ?? []).map((n) => n.user_id))];
+  // Voice of the People: most upvoted reviewer of the festival. Everyone is
+  // eligible — every curator is a critic too, so the writing stands on its own.
+  const ranked = (standings ?? []) as { user_id: string; upvotes: number }[];
+  const voice = ranked[0]
+    ? { memberId: ranked[0].user_id, upvotes: Number(ranked[0].upvotes) }
+    : null;
+
+  // Names for the credits, the closing tally, and the critics' award.
+  const memberIds = [
+    ...new Set(
+      [
+        ...(lineupRows ?? []).map((r) => r.curator_id),
+        ...(resultRows ?? []).map((r) => r.curator_id),
+        voice?.memberId,
+      ].filter((id): id is string => !!id),
+    ),
+  ];
   const { data: profiles } = memberIds.length
     ? await supabase.from("profiles").select("id, full_name").in("id", memberIds)
     : { data: [] };
   const membersById = Object.fromEntries(
     (profiles ?? []).map((p): [string, Member] => [
       p.id,
-      { id: p.id, name: p.full_name || "Member", awards: [], seasonsPlayed: 0 },
+      {
+        id: p.id,
+        name: p.full_name || "Member",
+        role: "curator",
+        awards: [],
+        festivalsPlayed: 0,
+      },
     ]),
   );
 
-  // Tonight's nominator tally — a count, not a currency (§1.3).
-  const counts = new Map<string, number>();
+  // Tonight's curator tally — a count, not a currency. The curator who took
+  // Best of the Fest leads it regardless of how many honours anyone else got.
+  const counts = new Map<string, { count: number; best: boolean }>();
   for (const result of results) {
-    for (const memberId of result.nominatorIds) {
-      counts.set(memberId, (counts.get(memberId) ?? 0) + 1);
-    }
+    if (!result.curatorId) continue;
+    const entry = counts.get(result.curatorId) ?? { count: 0, best: false };
+    entry.count += 1;
+    if (result.scoring) entry.best = true;
+    counts.set(result.curatorId, entry);
   }
   const tally = [...counts.entries()]
-    .map(([memberId, count]) => ({ memberId, count }))
-    .sort((a, b) => b.count - a.count);
+    .map(([memberId, e]) => ({
+      memberId,
+      count: e.count,
+      wonBestOfTheFest: e.best,
+    }))
+    .sort(
+      (a, b) =>
+        Number(b.wonBestOfTheFest) - Number(a.wonBestOfTheFest) ||
+        b.count - a.count,
+    );
 
   return (
     <Ceremony
@@ -150,9 +158,10 @@ export default async function CeremonyPage({
       filmsById={filmsById}
       membersById={membersById}
       tally={tally}
-      seasonNumber={season.number}
-      seasonCategory={season.category}
-      guildName={guildName}
+      voiceOfThePeople={voice}
+      festivalNumber={festival.number}
+      theme={festival.theme}
+      guildName={festival.guildName}
     />
   );
 }

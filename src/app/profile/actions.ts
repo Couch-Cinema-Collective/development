@@ -16,7 +16,7 @@ export type DeleteResult = { error?: string };
  * Every domain table references auth.users with `on delete cascade`, so
  * removing the auth record takes nominations, reviews, votes, watch records,
  * upvotes and memberships with it. The only thing needing care first is a
- * guild left without a commissioner.
+ * guild left without a president.
  */
 export async function deleteAccount(): Promise<DeleteResult> {
   const supabase = await createClient();
@@ -33,27 +33,31 @@ export async function deleteAccount(): Promise<DeleteResult> {
   }
 
   // Guilds this member runs. Leaving one headless would strand the members.
-  const { data: commissionerOf } = await admin
+  const { data: presidentOf } = await admin
     .from("guild_members")
     .select("guild_id")
     .eq("user_id", user.id)
-    .eq("role", "commissioner");
+    .eq("role", "president");
 
-  for (const { guild_id } of commissionerOf ?? []) {
+  for (const { guild_id } of presidentOf ?? []) {
     const { data: others } = await admin
       .from("guild_members")
-      .select("user_id, joined_at")
+      .select("user_id, joined_at, role")
       .eq("guild_id", guild_id)
       .neq("user_id", user.id)
+      .eq("status", "active")
       .order("joined_at", { ascending: true });
 
     if (others && others.length > 0) {
-      // Hand the guild to its longest-standing remaining member.
+      // Hand the guild to its longest-standing curator — running a festival is
+      // a curator's job, so a critic is only the fallback.
+      const heir =
+        others.find((m) => m.role === "curator") ?? others[0];
       await admin
         .from("guild_members")
-        .update({ role: "commissioner" })
+        .update({ role: "president", status: "active" })
         .eq("guild_id", guild_id)
-        .eq("user_id", others[0].user_id);
+        .eq("user_id", heir.user_id);
     } else {
       // Nobody left to run it — the guild goes with them.
       await admin.from("guilds").delete().eq("id", guild_id);

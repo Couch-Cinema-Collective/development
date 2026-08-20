@@ -2,7 +2,6 @@
 
 import { useCallback, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 
 import { FilmPoster } from "./FilmPoster";
 import { castVote } from "@/app/vote/actions";
@@ -15,28 +14,25 @@ import {
 } from "@/lib/types";
 
 interface BallotProps {
-  seasonId: string;
+  festivalId: string;
   awards: AwardCategory[];
-  slate: Film[];
+  lineup: Film[];
   watchedIds: number[];
   /** Saved picks: award id → tmdb id. */
   initialBallot: BallotType;
   /** Saved performer picks for the acting categories: award id → cast member. */
   initialPerformers: Record<string, CastMember>;
-  /** True when the season runs on the honor system (§1.5). */
-  honorGate: boolean;
 }
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
 export function Ballot({
-  seasonId,
+  festivalId,
   awards,
-  slate,
+  lineup,
   watchedIds,
   initialBallot,
   initialPerformers,
-  honorGate,
 }: BallotProps) {
   const [ballot, setBallot] = useState<BallotType>(initialBallot);
   const [performers, setPerformers] =
@@ -64,45 +60,15 @@ export function Ballot({
     [castByFilm],
   );
 
-  const unwatched = slate.filter((f) => !watchedIds.includes(f.id));
-  const gated = honorGate && unwatched.length > 0;
-
-  if (gated) {
-    return (
-      <section className="max-w-xl border border-ink bg-paper-raised p-8">
-        <p className="label-eyebrow text-signal">Ballot locked</p>
-        <h2 className="mt-3 text-3xl font-medium uppercase leading-tight tracking-tight">
-          {watchedIds.length} of {slate.length} watched
-        </h2>
-        <p className="mt-4 text-sm leading-relaxed text-ink-soft">
-          Voting opens once you&apos;ve finished the slate. If you didn&apos;t
-          finish the movies, you just don&apos;t get to vote — that&apos;s the
-          deal. It costs you nothing but this round&apos;s ballot.
-        </p>
-
-        <ul className="mt-6 space-y-2">
-          {unwatched.map((film) => (
-            <li key={film.id} className="flex items-baseline gap-3 text-sm">
-              <span className="size-1.5 shrink-0 rounded-full bg-signal" />
-              <span>{film.title}</span>
-            </li>
-          ))}
-        </ul>
-
-        <Link
-          href="/season"
-          className="mt-8 inline-block bg-ink px-6 py-3 text-xs uppercase tracking-[0.12em] text-paper transition-colors hover:bg-signal"
-        >
-          Back to the season
-        </Link>
-      </section>
-    );
-  }
+  // Every screening window has closed by the time the ballot opens, so there
+  // is nothing left to gate on — but voting on a film you never saw is still
+  // worth a word, so unwatched titles get a nudge rather than a lock.
+  const unwatched = lineup.filter((f) => !watchedIds.includes(f.id));
 
   function save(awardId: string, filmId: number, person?: CastMember) {
     setSaveState("saving");
     setSaveError(null);
-    void castVote({ seasonId, awardId, tmdbId: filmId, person }).then(
+    void castVote({ festivalId, awardId, tmdbId: filmId, person }).then(
       (result) => {
         if (result.error) {
           setSaveState("error");
@@ -177,6 +143,15 @@ export function Ballot({
             </span>
           </span>
         </div>
+        {unwatched.length > 0 && (
+          <p className="mt-3 text-xs leading-relaxed text-ink-faint">
+            You never marked {unwatched.length} of these watched
+            {unwatched.length <= 3
+              ? ` — ${unwatched.map((f) => f.title).join(", ")}.`
+              : "."}{" "}
+            Nothing stops you voting; it just seems worth mentioning.
+          </p>
+        )}
         <div className="mt-3 flex gap-1">
           {awards.map((award) => (
             <span
@@ -203,7 +178,7 @@ export function Ballot({
             </div>
 
             <ul className="mt-5 grid grid-cols-3 gap-4 sm:grid-cols-6">
-              {slate.map((film) => {
+              {lineup.map((film) => {
                 const chosen = ballot[award.id] === film.id;
                 return (
                   <li key={film.id}>
