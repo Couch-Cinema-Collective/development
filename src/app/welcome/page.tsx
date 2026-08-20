@@ -30,9 +30,7 @@ export default async function WelcomePage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/welcome");
 
-  const memberships = await getUserMemberships();
-  const active = memberships.filter((m) => m.status === "active");
-  const pending = memberships.filter((m) => m.status === "pending");
+  const active = await getUserMemberships();
   const firstName = (
     (user.user_metadata.full_name as string | undefined) ??
     user.email ??
@@ -70,25 +68,7 @@ export default async function WelcomePage() {
         </ul>
       )}
 
-      {pending.length > 0 && (
-        <ul className="mt-6 grid gap-px border border-rule bg-rule">
-          {pending.map((m) => (
-            <li
-              key={m.guildId}
-              className="flex items-baseline justify-between gap-6 bg-paper-raised px-6 py-5"
-            >
-              <span className="text-xl font-medium uppercase tracking-tight text-ink-faint">
-                {m.guildName}
-              </span>
-              <span className="label-eyebrow">
-                Curator seat · awaiting the president
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {active.length === 0 && pending.length === 0 && (
+      {active.length === 0 && (
         <>
           <p className="mt-10 max-w-xl leading-relaxed text-ink-soft">
             You&apos;re not in a guild yet. Two ways in, and the first question
@@ -100,16 +80,16 @@ export default async function WelcomePage() {
               <p className="label-eyebrow text-signal">Curator</p>
               <p className="mt-2 text-sm leading-relaxed text-ink-soft">
                 You put up one film per festival and compete for the festival
-                award. Seats are limited to {MAX_CURATORS} a guild, so the
-                president approves them.
+                award. Seats are capped per guild, so they go first come first
+                served.
               </p>
             </div>
             <div className="bg-paper-raised px-6 py-7">
               <p className="label-eyebrow">Critic</p>
               <p className="mt-2 text-sm leading-relaxed text-ink-soft">
-                You watch, review, and vote — no approval needed, up to{" "}
-                {MAX_CRITICS} a guild. Curators do this too; it just isn&apos;t
-                all they do.
+                You watch, review, and vote, with room for {MAX_CRITICS} a
+                guild — so there is effectively always a seat. Curators do this
+                too; it just isn&apos;t all they do.
               </p>
             </div>
           </div>
@@ -122,8 +102,9 @@ export default async function WelcomePage() {
             Establish a guild
           </h2>
           <p className="mt-4 text-sm leading-relaxed text-ink-soft">
-            You become its president: you seat {MIN_CURATORS}–{MAX_CURATORS}{" "}
-            curators, set the festival theme, and run the ceremony.
+            You become its president: you decide how many of the{" "}
+            {MIN_CURATORS}–{MAX_CURATORS} curator seats exist, set the festival
+            theme, and run the ceremony.
           </p>
           <div className="mt-6">
             <CreateGuildForm />
@@ -135,8 +116,8 @@ export default async function WelcomePage() {
             Join a guild
           </h2>
           <p className="mt-4 text-sm leading-relaxed text-ink-soft">
-            Have an invite code or link? Walk in as a critic, or apply for a
-            curator seat and wait for the president to approve it.
+            Have an invite code or link? Walk in as a critic, or take one of
+            the curator seats if any are still free.
           </p>
           <div className="mt-6">
             <JoinGuildForm />

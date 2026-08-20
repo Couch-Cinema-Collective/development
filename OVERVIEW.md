@@ -14,8 +14,8 @@ The tone is intentionally closer to a serious film club than a game — institut
 
 The first question the app asks is which one you want.
 
-- **Curator** — you put a single film into the festival and defend it. Think producer, not critic: you stake your name on a pick, and if it takes Best of the Fest, the win goes on your record. Seats are capped at 12 a guild, so the president approves them.
-- **Critic** — you're the voting body. Watch each film, write 200 characters on it, and spend three upvotes on the reviews that earned them. Up to 50 a guild, no approval needed.
+- **Curator** — you put a single film into the festival and defend it. Think producer, not critic: you stake your name on a pick, and if it takes Best of the Fest, the win goes on your record. Seats are finite — the president sets how many, up to 12 — and they go first come first served.
+- **Critic** — you're the voting body. Watch each film, write 200 characters on it, and spend three upvotes on the reviews that earned them. Room for 50 a guild, so there is effectively always a seat.
 
 Every curator is also a critic. Curating is the extra job, never the alternative to it.
 

@@ -71,11 +71,11 @@ export default async function JoinPage({
           </p>
         ) : user ? (
           <>
-            <JoinGuildForm code={code} />
+            <JoinGuildForm code={code} curatorSeatsLeft={curatorSeats} />
             <p className="mt-5 text-xs leading-relaxed text-ink-faint">
               {curatorSeats > 0
-                ? `${curatorSeats} curator seat${curatorSeats === 1 ? "" : "s"} left, and room for ${criticSeats} more critic${criticSeats === 1 ? "" : "s"}.`
-                : `Curator seats are full, but there is room for ${criticSeats} more critic${criticSeats === 1 ? "" : "s"}.`}
+                ? `Curator seats go first come first served — ${curatorSeats} of ${preview.max_curators} left. Room for ${criticSeats} more critic${criticSeats === 1 ? "" : "s"}.`
+                : `Every curator seat is taken, but there is room for ${criticSeats} more critic${criticSeats === 1 ? "" : "s"}.`}
             </p>
           </>
         ) : (

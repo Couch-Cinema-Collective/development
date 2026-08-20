@@ -31,8 +31,8 @@ Screening order is **shuffled** at lineup time. Going in nomination order would 
 
 | | Curator | Critic |
 |---|---|---|
-| Cap per guild | 4–12 (president included) | 50 |
-| Admission | President approves | Immediate |
+| Cap per guild | 4–12, president sets it | 50 |
+| Admission | First come, first served | Immediate |
 | Puts up a film | Yes, exactly one | No |
 | Watches, reviews, votes | Yes | Yes |
 | Eligible for Best of the Fest | Yes | No |
@@ -40,7 +40,7 @@ Screening order is **shuffled** at lineup time. Going in nomination order would 
 
 **Every curator is also a critic.** Curating is an addition to the critic's job, never a replacement — a curator watches, reviews, and upvotes on every film including their own.
 
-The president is the curator who founded the guild. They set the theme and the pace, approve curator seats, and drive the festival's transitions.
+The president is the curator who founded the guild. They set the theme, the pace, and **how many curator seats exist** — but not who fills them. Seats are first-come-first-served; scarcity is the only lever, which keeps the president out of the business of judging who deserves to programme.
 
 ### 1.3 The per-film cycle ✅
 
@@ -155,7 +155,7 @@ One pick. TMDB search, theme catalog to browse, and a filed-count (`6 / 8 curato
 - **Ceremony:** full-bleed Oscar-card reveal, one award per screen, honorary first, Best of the Fest, then Voice of the People closing the night. Ends on the curator tally.
 
 ### D. Guild home
-The president's single next move up top, the curator approval queue under it, then one clear destination for everyone else. Roster split into curators and critics, because they're different jobs.
+The president's single next move up top, the curator-seat control under it, then one clear destination for everyone else. Roster split into curators and critics, because they're different jobs.
 
 ### E. Wiki / film school
 Theme pages: definition, legacy, 4 canonical examples with posters. Open to everyone, no membership required — top of funnel.

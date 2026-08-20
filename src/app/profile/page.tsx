@@ -37,9 +37,7 @@ export default async function ProfilePage() {
     "Member";
 
   // Finished festivals across the member's guilds.
-  const guildIds = (await getUserMemberships())
-    .filter((m) => m.status === "active")
-    .map((m) => m.guildId);
+  const guildIds = (await getUserMemberships()).map((m) => m.guildId);
   const { data: festivals } = guildIds.length
     ? await supabase
         .from("festivals")

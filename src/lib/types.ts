@@ -57,11 +57,11 @@ export interface ExternalScores {
  * voting body. Every curator is also a critic — curating is an addition to the
  * critic's job, never a replacement for it. The president is the curator who
  * founded the guild and runs its festivals.
+ *
+ * Both seats are open on arrival. Curator seats are simply finite: the
+ * president sets how many exist, and they go first-come-first-served.
  */
 export type GuildRole = "president" | "curator" | "critic";
-
-/** Curators need the president's approval; critics walk in on a code. */
-export type MembershipStatus = "active" | "pending";
 
 export interface Member {
   id: string;
@@ -272,7 +272,10 @@ export interface CriticStanding {
 
 // ── The rules, as constants ──────────────────────────────────────────────────
 
-/** A festival needs four curators to be worth running, and tops out at twelve. */
+/**
+ * A festival needs four curators to be worth running, and tops out at twelve.
+ * The president picks a number in this range; seats are then first-come.
+ */
 export const MIN_CURATORS = 4;
 export const MAX_CURATORS = 12;
 

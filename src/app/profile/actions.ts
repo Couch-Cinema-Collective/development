@@ -45,7 +45,6 @@ export async function deleteAccount(): Promise<DeleteResult> {
       .select("user_id, joined_at, role")
       .eq("guild_id", guild_id)
       .neq("user_id", user.id)
-      .eq("status", "active")
       .order("joined_at", { ascending: true });
 
     if (others && others.length > 0) {
@@ -55,7 +54,7 @@ export async function deleteAccount(): Promise<DeleteResult> {
         others.find((m) => m.role === "curator") ?? others[0];
       await admin
         .from("guild_members")
-        .update({ role: "president", status: "active" })
+        .update({ role: "president" })
         .eq("guild_id", guild_id)
         .eq("user_id", heir.user_id);
     } else {

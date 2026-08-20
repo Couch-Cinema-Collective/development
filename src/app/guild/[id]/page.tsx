@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import { CopyButton } from "@/components/CopyButton";
 import { Countdown } from "@/components/Countdown";
-import { CuratorQueue } from "@/components/CuratorQueue";
+import { CuratorSeats } from "@/components/CuratorSeats";
 import { PresidentPanel } from "@/components/PresidentPanel";
 import { getGuildFestivals, getGuildHome } from "@/lib/guilds";
 import { createClient } from "@/lib/supabase/server";
@@ -151,11 +151,11 @@ export default async function GuildPage({
           </section>
         )}
 
-        {president && guild.pending.length > 0 && (
-          <CuratorQueue
+        {president && (
+          <CuratorSeats
             guildId={guild.id}
-            pending={guild.pending}
-            seatsLeft={seatsLeft}
+            seats={guild.maxCurators}
+            filled={guild.curators.length}
           />
         )}
 
@@ -205,11 +205,11 @@ export default async function GuildPage({
               <CopyButton text={inviteUrl} />
             </div>
             <p className="mt-4 text-xs leading-relaxed text-ink-faint">
-              Anyone with this link joins as a critic straight away. Applying
-              for a curator seat comes to you for approval —{" "}
+              Anyone with this link picks their own chair on the way in.
+              Critic seats are effectively unlimited; curator seats are{" "}
               {seatsLeft > 0
-                ? `${seatsLeft} of ${guild.maxCurators} still free.`
-                : `all ${guild.maxCurators} are taken.`}
+                ? `first come first served — ${seatsLeft} of ${guild.maxCurators} still free.`
+                : `all taken (${guild.maxCurators} of ${guild.maxCurators}).`}
             </p>
           </section>
         )}

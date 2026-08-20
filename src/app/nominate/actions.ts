@@ -51,7 +51,7 @@ export async function nominate(
   if (error) {
     return {
       error:
-        "Couldn't put that film up — nominations may have closed, or your curator seat may still be pending.",
+        "Couldn't put that film up — nominations may have closed, or you may not hold a curator seat.",
     };
   }
 

@@ -216,37 +216,21 @@ export async function archiveFestival(
 
 // ── Curator seats ───────────────────────────────────────────────────────────
 
-/** Approve a curator application. The cap is enforced by trigger. */
-export async function approveCurator(
+/**
+ * Set how many curator seats the guild has.
+ *
+ * This is the president's only lever over the curator roster now that seats
+ * are first-come-first-served — they control how many exist, not who fills
+ * them. Postgres refuses to cut below the number already seated.
+ */
+export async function setCuratorSeats(
   guildId: string,
-  userId: string,
+  seats: number,
 ): Promise<FestivalActionResult> {
   const supabase = await createClient();
-  const { error } = await supabase.rpc("approve_curator", {
+  const { error } = await supabase.rpc("set_curator_seats", {
     gid: guildId,
-    uid: userId,
-  });
-  if (error) {
-    return {
-      error: error.message.includes("cap")
-        ? "Every curator seat is taken. Free one up first."
-        : error.message,
-    };
-  }
-
-  revalidatePath(`/guild/${guildId}`);
-  return { ok: true };
-}
-
-/** Turn an application down. They stay on as a critic. */
-export async function declineCurator(
-  guildId: string,
-  userId: string,
-): Promise<FestivalActionResult> {
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("decline_curator", {
-    gid: guildId,
-    uid: userId,
+    seats,
   });
   if (error) return { error: error.message };
 

@@ -45,7 +45,7 @@ export default async function NominatePage({
 
   const { data: membership } = await supabase
     .from("guild_members")
-    .select("role, status")
+    .select("role")
     .eq("guild_id", festival.guildId)
     .eq("user_id", user.id)
     .maybeSingle();

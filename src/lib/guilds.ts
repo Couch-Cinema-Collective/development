@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
-import { isCurator, type GuildRole, type MembershipStatus } from "@/lib/types";
+import { isCurator, type GuildRole } from "@/lib/types";
 
 export type { GuildRole } from "@/lib/types";
 
@@ -9,7 +9,6 @@ export interface Membership {
   guildId: string;
   guildName: string;
   role: GuildRole;
-  status: MembershipStatus;
   curatorCount: number;
   criticCount: number;
 }
@@ -18,7 +17,6 @@ export interface RosterEntry {
   userId: string;
   fullName: string;
   role: GuildRole;
-  status: MembershipStatus;
   joinedAt: string;
 }
 
@@ -33,8 +31,6 @@ export interface GuildHome {
   curators: RosterEntry[];
   /** The rest of the voting body. */
   critics: RosterEntry[];
-  /** Curator applications the president has yet to rule on. */
-  pending: RosterEntry[];
 }
 
 /** Every guild the signed-in user belongs to (RLS scopes the rows). */
@@ -47,7 +43,7 @@ export async function getUserMemberships(): Promise<Membership[]> {
 
   const { data: rows } = await supabase
     .from("guild_members")
-    .select("guild_id, role, status, guilds(name)")
+    .select("guild_id, role, guilds(name)")
     .eq("user_id", user.id);
   if (!rows?.length) return [];
 
@@ -55,9 +51,8 @@ export async function getUserMemberships(): Promise<Membership[]> {
   const guildIds = rows.map((r) => r.guild_id);
   const { data: everyone } = await supabase
     .from("guild_members")
-    .select("guild_id, role, status")
-    .in("guild_id", guildIds)
-    .eq("status", "active");
+    .select("guild_id, role")
+    .in("guild_id", guildIds);
 
   const curators = new Map<string, number>();
   const critics = new Map<string, number>();
@@ -71,15 +66,14 @@ export async function getUserMemberships(): Promise<Membership[]> {
     // PostgREST types to-one embeds loosely; at runtime this is one object.
     guildName: (r.guilds as unknown as { name: string })?.name ?? "Unnamed",
     role: r.role as GuildRole,
-    status: r.status as MembershipStatus,
     curatorCount: curators.get(r.guild_id) ?? 0,
     criticCount: critics.get(r.guild_id) ?? 0,
   }));
 }
 
-/** Guilds this user actually participates in — pending applications excluded. */
+/** Alias kept for call sites: every membership is active now. */
 export async function getActiveMemberships(): Promise<Membership[]> {
-  return (await getUserMemberships()).filter((m) => m.status === "active");
+  return getUserMemberships();
 }
 
 export interface FestivalSummary {
@@ -187,7 +181,7 @@ export async function getGuildHome(guildId: string): Promise<GuildHome | null> {
 
   const { data: members } = await supabase
     .from("guild_members")
-    .select("user_id, role, status, joined_at")
+    .select("user_id, role, joined_at")
     .eq("guild_id", guildId)
     .order("joined_at");
 
@@ -205,14 +199,11 @@ export async function getGuildHome(guildId: string): Promise<GuildHome | null> {
     userId: m.user_id,
     fullName: nameById.get(m.user_id) ?? "Member",
     role: m.role as GuildRole,
-    status: m.status as MembershipStatus,
     joinedAt: m.joined_at,
   }));
 
   const me = roster.find((m) => m.userId === user.id);
-  if (!me || me.status !== "active") return null;
-
-  const active = roster.filter((m) => m.status === "active");
+  if (!me) return null;
 
   return {
     id: guild.id,
@@ -222,12 +213,11 @@ export async function getGuildHome(guildId: string): Promise<GuildHome | null> {
     maxCritics: guild.max_critics,
     role: me.role,
     // President first, then curators in joining order.
-    curators: active
+    curators: roster
       .filter((m) => isCurator(m.role))
       .sort((a, b) =>
         a.role === b.role ? 0 : a.role === "president" ? -1 : 1,
       ),
-    critics: active.filter((m) => m.role === "critic"),
-    pending: roster.filter((m) => m.status === "pending"),
+    critics: roster.filter((m) => m.role === "critic"),
   };
 }

@@ -41,27 +41,43 @@ export function CreateGuildForm() {
 /**
  * The onboarding fork, in the words the founding notes use: critic or curator?
  *
- * Critics are admitted immediately — there is no reason to gatekeep the voting
- * body. A curator seat is one of twelve and comes out of someone else's, so
- * that choice goes to the president as an application.
+ * Both chairs are open on arrival — nobody approves anybody. Curator seats are
+ * simply finite, so the only way to miss out is to be too late, which is what
+ * `curatorSeatsLeft` warns about before the choice is made rather than after
+ * it is submitted.
  */
-export function JoinGuildForm({ code = "" }: { code?: string }) {
+export function JoinGuildForm({
+  code = "",
+  curatorSeatsLeft,
+}: {
+  code?: string;
+  /** Undefined where the count isn't known (the generic welcome-page form). */
+  curatorSeatsLeft?: number;
+}) {
   const [state, action, pending] = useActionState<GuildFormState, FormData>(
     joinGuild,
     null,
   );
   const [role, setRole] = useState<"critic" | "curator">("critic");
 
+  const curatorFull = curatorSeatsLeft !== undefined && curatorSeatsLeft <= 0;
+
   const options = [
     {
       id: "critic" as const,
       label: "Critic",
-      note: "Watch, review, vote. In straight away.",
+      note: "Watch, review, vote. Always open.",
+      disabled: false,
     },
     {
       id: "curator" as const,
       label: "Curator",
-      note: "Also put a film up. Needs the president's nod.",
+      note: curatorFull
+        ? "Every seat is taken."
+        : curatorSeatsLeft !== undefined
+          ? `Also put a film up. ${curatorSeatsLeft} seat${curatorSeatsLeft === 1 ? "" : "s"} left.`
+          : "Also put a film up, if a seat is free.",
+      disabled: curatorFull,
     },
   ];
 
@@ -78,7 +94,8 @@ export function JoinGuildForm({ code = "" }: { code?: string }) {
               type="button"
               onClick={() => setRole(o.id)}
               aria-pressed={role === o.id}
-              className={`px-4 py-3 text-left transition-colors ${
+              disabled={o.disabled}
+              className={`px-4 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                 role === o.id
                   ? "bg-ink text-paper"
                   : "bg-paper-raised hover:bg-paper"
@@ -121,7 +138,7 @@ export function JoinGuildForm({ code = "" }: { code?: string }) {
         {pending
           ? "Joining…"
           : role === "curator"
-            ? "Apply as Curator"
+            ? "Take a Curator Seat"
             : "Join as Critic"}
       </button>
     </form>
