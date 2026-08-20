@@ -81,7 +81,9 @@ export default async function RootLayout({
   return (
     <html lang="en" className={jost.variable}>
       <body className="min-h-screen antialiased">
-        <header className="relative border-b border-rule bg-paper-raised">
+        {/* Safe-area padding lives on the header, not body: its background fills
+            the notch area while the logo sits clear of the system UI. */}
+        <header className="relative border-b border-rule bg-paper-raised pt-[env(safe-area-inset-top)]">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-8 px-6 py-4">
             <Link href="/" className="shrink-0">
               <Image
