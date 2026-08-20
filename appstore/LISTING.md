@@ -90,6 +90,17 @@ Film data provided by TMDB.
 | Marketing URL | https://www.couchcinemacollective.com |
 | Privacy Policy URL | https://www.couchcinemacollective.com/privacy |
 
+## Copyright
+
+```
+2026 ConcertBuddy.ai LLC
+```
+
+Year of first publication, then the rights holder. Apple adds the © itself —
+including one is a common reason the field gets kicked back. The entity, not
+the brand: the copyright belongs to the company that owns the developer
+account.
+
 ## Category
 
 Primary: **Entertainment** · Secondary: **Social Networking**
