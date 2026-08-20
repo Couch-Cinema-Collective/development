@@ -85,7 +85,7 @@ export default async function NominatePage({
   const [{ data: mine }, { data: countRow }, catalog] = await Promise.all([
     supabase
       .from("nominations")
-      .select("tmdb_id, film")
+      .select("tmdb_id, film, locked")
       .eq("festival_id", festival.id)
       .eq("user_id", user.id)
       .maybeSingle(),
@@ -93,7 +93,9 @@ export default async function NominatePage({
     catalogForCategory(festival.theme),
   ]);
 
-  const counts = countRow as { submitted: number; expected: number } | null;
+  const counts = countRow as
+    | { submitted: number; picked: number; expected: number }
+    | null;
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-12">
@@ -103,11 +105,11 @@ export default async function NominatePage({
             {festival.guildName} · Festival {festival.number} · {festival.theme}
           </p>
           <h1 className="mt-3 text-5xl font-medium uppercase leading-none tracking-tight">
-            Your Nomination
+            Pick Your Film
           </h1>
           <p className="mt-4 max-w-lg text-sm leading-relaxed text-ink-soft">
-            One film, chosen by you, screened by everyone. Pick the one you want
-            to defend.
+            One film, chosen by you, screened by everyone. Choose the one you
+            want to defend, then lock it in.
           </p>
         </div>
 
@@ -130,6 +132,7 @@ export default async function NominatePage({
           theme={festival.theme}
           catalog={catalog}
           initialPick={(mine?.film as Film) ?? null}
+          initialLocked={Boolean(mine?.locked)}
           initialSubmitted={Number(counts?.submitted ?? 0)}
           expected={Number(counts?.expected ?? 0)}
           live={isLive()}

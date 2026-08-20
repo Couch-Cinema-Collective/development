@@ -6,7 +6,13 @@ import Link from "next/link";
 import { Countdown } from "./Countdown";
 import { FilmPoster } from "./FilmPoster";
 import { saveReview, setWatched, toggleUpvote } from "@/app/dashboard/actions";
-import { PHASE_LABELS, phaseDeadline, phaseOf } from "@/lib/lineup";
+import {
+  PHASE_LABELS,
+  allClosed,
+  notYetOpen,
+  phaseDeadline,
+  phaseOf,
+} from "@/lib/lineup";
 import {
   REVIEW_MAX_CHARS,
   UPVOTES_PER_FILM,
@@ -330,12 +336,42 @@ export function Dashboard({
               )}
             </div>
           </section>
-        ) : (
+        ) : notYetOpen(lineup) ? (
+          <section className="border border-ink bg-paper-raised px-6 py-10">
+            <p className="label-eyebrow text-signal">Opening soon</p>
+            <p className="mt-3 text-3xl font-medium uppercase leading-tight tracking-tight">
+              The lineup is set
+            </p>
+            <p className="mt-3 max-w-lg text-sm leading-relaxed text-ink-soft">
+              {lineup.length} film{lineup.length === 1 ? "" : "s"} are
+              programmed and waiting. Nothing has opened yet — the first one
+              starts the moment your president opens the festival.
+            </p>
+            <div className="mt-7">
+              <p className="label-eyebrow">First film opens in</p>
+              <div className="mt-2">
+                <Countdown
+                  deadline={lineup[0].viewingStartsAt}
+                  expiredLabel="Opening now"
+                />
+              </div>
+            </div>
+          </section>
+        ) : allClosed(lineup) ? (
           <section className="border border-rule bg-paper-raised px-6 py-10">
-            <p className="label-eyebrow">Nothing on right now</p>
+            <p className="label-eyebrow">The festival has screened</p>
             <p className="mt-3 max-w-lg text-sm leading-relaxed text-ink-soft">
               Every film in the lineup has closed. The ceremony is next — your
               president opens the ballot when they&apos;re ready.
+            </p>
+          </section>
+        ) : (
+          <section className="border border-rule bg-paper-raised px-6 py-10">
+            <p className="label-eyebrow">Nothing programmed yet</p>
+            <p className="mt-3 max-w-lg text-sm leading-relaxed text-ink-soft">
+              There is no lineup for this festival yet. Once curators lock in
+              their films and your president draws the lineup, the clock
+              appears here.
             </p>
           </section>
         )}

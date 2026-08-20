@@ -19,9 +19,12 @@ import { usePathname } from "next/navigation";
 export function SiteNav({
   items,
   authSlot,
+  guildSlot = null,
 }: {
   items: { href: string; label: string }[];
   authSlot: React.ReactNode;
+  /** The guilds dropdown, rendered server-side and passed in like authSlot. */
+  guildSlot?: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -42,6 +45,7 @@ export function SiteNav({
             {item.label}
           </Link>
         ))}
+        {guildSlot}
         {authSlot}
       </nav>
 
@@ -81,6 +85,9 @@ export function SiteNav({
                 {item.label}
               </Link>
             ))}
+            {guildSlot && (
+              <div className="border-b border-rule py-4">{guildSlot}</div>
+            )}
             <div className="py-4">{authSlot}</div>
           </nav>
         </div>

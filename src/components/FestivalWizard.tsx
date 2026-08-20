@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import Image from "next/image";
 
 import { createFestival } from "@/app/festival/new/actions";
 import {
@@ -60,6 +61,7 @@ export function FestivalWizard({
   const [customAwards, setCustomAwards] = useState<string[]>([]);
   const [customDraft, setCustomDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [posters, setPosters] = useState<Record<string, string | null>>({});
   const [pending, startTransition] = useTransition();
 
   const cadence = CADENCE_PRESETS.find((c) => c.id === cadenceId)!;
@@ -76,6 +78,27 @@ export function FestivalWizard({
     if (!family) return [];
     return categories.filter((c) => c.family === family);
   }, [categories, themeFamily]);
+
+  // Poster art is fetched per family rather than for all 113 themes at once,
+  // and only once the picker is actually on screen.
+  const posterFamily = FAMILY_MAP[themeFamily];
+  useEffect(() => {
+    if (!posterFamily) return;
+    let cancelled = false;
+    fetch(`/api/themes/posters?family=${encodeURIComponent(posterFamily)}`)
+      .then((r) => r.json())
+      .then((data: { posters?: Record<string, string | null> }) => {
+        if (!cancelled && data.posters) {
+          setPosters((prev) => ({ ...prev, ...data.posters }));
+        }
+      })
+      .catch(() => {
+        // A decorative image failing is not worth surfacing.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [posterFamily]);
 
   function toggleAward(id: string) {
     setAwardIds((prev) =>
@@ -192,24 +215,54 @@ export function FestivalWizard({
             />
 
             {themeOptions.length > 0 && (
-              <div className="mt-5">
-                <p className="label-eyebrow">Or take one from the collection</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {themeOptions.slice(0, 12).map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => setTheme(c.name)}
-                      className={`border px-3 py-1.5 text-xs uppercase tracking-[0.1em] transition-colors ${
-                        theme === c.name
-                          ? "border-signal bg-signal text-paper"
-                          : "border-rule hover:border-ink"
-                      }`}
-                    >
-                      {c.name}
-                    </button>
-                  ))}
+              <div className="mt-6">
+                <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-rule pb-2">
+                  <p className="label-eyebrow">Or take one from the collection</p>
+                  <p className="label-eyebrow">{themeOptions.length} to choose from</p>
                 </div>
+
+                <ul className="mt-4 grid grid-cols-2 gap-px border border-rule bg-rule sm:grid-cols-3 lg:grid-cols-4">
+                  {themeOptions.map((c) => {
+                    const chosen = theme === c.name;
+                    const poster = posters[c.id];
+                    return (
+                      <li key={c.id} className="bg-paper-raised">
+                        <button
+                          type="button"
+                          onClick={() => setTheme(c.name)}
+                          title={c.blurb}
+                          className={`flex w-full flex-col text-left transition-colors ${
+                            chosen ? "bg-ink text-paper" : "hover:bg-paper"
+                          }`}
+                        >
+                          <span className="relative block aspect-[2/3] w-full overflow-hidden bg-ink/5">
+                            {poster ? (
+                              <Image
+                                src={`https://image.tmdb.org/t/p/w342${poster}`}
+                                alt=""
+                                fill
+                                sizes="(max-width: 640px) 50vw, 25vw"
+                                className="object-cover"
+                              />
+                            ) : (
+                              <span className="flex h-full items-center justify-center px-2 text-center text-xs uppercase tracking-[0.1em] text-ink-faint">
+                                {c.exemplars[0] ?? c.name}
+                              </span>
+                            )}
+                            {chosen && (
+                              <span className="absolute inset-0 flex items-center justify-center bg-signal/85 text-xs font-medium uppercase tracking-[0.14em] text-paper">
+                                Chosen
+                              </span>
+                            )}
+                          </span>
+                          <span className="block px-3 py-2.5 text-xs font-medium uppercase leading-tight tracking-tight">
+                            {c.name}
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
             )}
 

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Dashboard, type ThreadReview } from "@/components/Dashboard";
+import { GuildSwitcher } from "@/components/GuildSwitcher";
 import { getCurrentFestival, getUserMemberships } from "@/lib/guilds";
 import { currentFilm, nextFilm, toLineup, type LineupRow } from "@/lib/lineup";
 import { createClient } from "@/lib/supabase/server";
@@ -30,10 +31,12 @@ export default async function DashboardPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/dashboard");
 
-  const festival = await getCurrentFestival(LIVE_STATES, guildParam);
+  const [festival, memberships] = await Promise.all([
+    getCurrentFestival(LIVE_STATES, guildParam),
+    getUserMemberships(),
+  ]);
 
   if (!festival) {
-    const memberships = await getUserMemberships();
     return (
       <main className="mx-auto max-w-3xl px-6 py-16">
         <p className="label-eyebrow">Dashboard</p>
@@ -164,12 +167,23 @@ export default async function DashboardPage({
   return (
     <main className="mx-auto max-w-6xl px-6 py-12">
       <header className="border-b border-rule pb-6">
-        <p className="label-eyebrow">
-          {festival.guildName} · Festival {festival.number}
-        </p>
-        <h1 className="mt-3 text-5xl font-medium uppercase leading-none tracking-tight">
-          {festival.theme}
-        </h1>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="label-eyebrow">
+              {festival.guildName} · Festival {festival.number}
+            </p>
+            <h1 className="mt-3 text-balance text-5xl font-medium uppercase leading-none tracking-tight">
+              {festival.theme}
+            </h1>
+          </div>
+          <GuildSwitcher
+            guilds={memberships.map((m) => ({
+              guildId: m.guildId,
+              guildName: m.guildName,
+            }))}
+            activeGuildId={festival.guildId}
+          />
+        </div>
       </header>
 
       <div className="mt-10">

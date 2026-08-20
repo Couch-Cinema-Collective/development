@@ -8,7 +8,9 @@ import type { Film } from "@/lib/types";
 export interface NominateResult {
   error?: string;
   submitted?: number;
+  picked?: number;
   expected?: number;
+  locked?: boolean;
 }
 
 async function counts(festivalId: string) {
@@ -16,8 +18,14 @@ async function counts(festivalId: string) {
   const { data } = await supabase
     .rpc("nomination_count", { fid: festivalId })
     .maybeSingle();
-  const row = data as { submitted: number; expected: number } | null;
-  return { submitted: Number(row?.submitted ?? 0), expected: Number(row?.expected ?? 0) };
+  const row = data as
+    | { submitted: number; picked: number; expected: number }
+    | null;
+  return {
+    submitted: Number(row?.submitted ?? 0),
+    picked: Number(row?.picked ?? 0),
+    expected: Number(row?.expected ?? 0),
+  };
 }
 
 /**
@@ -79,4 +87,33 @@ export async function withdrawNomination(
 
   revalidatePath("/nominate");
   return counts(festivalId);
+}
+
+/**
+ * Commit the pick to the programme.
+ *
+ * One-way by design: a lock you can undo is just a pick with an extra step,
+ * and the whole point of the button is to be the moment a curator is done.
+ */
+export async function lockNomination(
+  festivalId: string,
+): Promise<NominateResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Sign in first." };
+
+  const { error } = await supabase.rpc("lock_nomination", { fid: festivalId });
+  if (error) {
+    return {
+      error: error.message.includes("Pick a film")
+        ? "Pick a film before locking it in."
+        : "Couldn't lock that in — nominations may have closed.",
+    };
+  }
+
+  revalidatePath("/nominate");
+  revalidatePath("/guild", "layout");
+  return { ...(await counts(festivalId)), locked: true };
 }

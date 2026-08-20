@@ -4,10 +4,11 @@ import { redirect } from "next/navigation";
 import { CopyButton } from "@/components/CopyButton";
 import { Countdown } from "@/components/Countdown";
 import { CuratorSeats } from "@/components/CuratorSeats";
+import { LockedSubmission } from "@/components/LockedSubmission";
 import { PresidentPanel } from "@/components/PresidentPanel";
 import { getGuildFestivals, getGuildHome } from "@/lib/guilds";
 import { createClient } from "@/lib/supabase/server";
-import { isCurator, MAX_CRITICS } from "@/lib/types";
+import { isCurator, MAX_CRITICS, type Film } from "@/lib/types";
 
 /** Member-facing label per festival state. */
 const STATE_LABELS: Record<string, string> = {
@@ -36,7 +37,7 @@ function memberAction(
       return curator
         ? {
             href: `/nominate?guild=${guildId}`,
-            label: "Put your film up",
+            label: "Pick your film",
             note: "Nominations are open — one film, your pick.",
           }
         : {
@@ -96,7 +97,33 @@ export default async function GuildPage({
 
   const president = guild.role === "president";
   const curator = isCurator(guild.role);
-  const action = memberAction(current?.state, guild.id, curator);
+
+  // A curator who has already locked in gets their submission back rather than
+  // a call to action they have no way to act on.
+  const nominating = current?.state === "NOMINATING";
+  const [{ data: myNomination }, { data: countRow }] =
+    nominating && curator
+      ? await Promise.all([
+          supabase
+            .from("nominations")
+            .select("film, locked")
+            .eq("festival_id", current.id)
+            .eq("user_id", user.id)
+            .maybeSingle(),
+          supabase
+            .rpc("nomination_count", { fid: current.id })
+            .maybeSingle(),
+        ])
+      : [{ data: null }, { data: null }];
+
+  const lockedIn = Boolean(myNomination?.locked);
+  const counts = countRow as
+    | { submitted: number; picked: number; expected: number }
+    | null;
+
+  const action = lockedIn
+    ? null
+    : memberAction(current?.state, guild.id, curator);
   const seatsLeft = guild.maxCurators - guild.curators.length;
 
   // Invite links always carry the canonical domain (design decision) — a
@@ -159,7 +186,16 @@ export default async function GuildPage({
           />
         )}
 
-        {/* ── What this member does next ─────────────────────────────────── */}
+        {/* ── A submitted film, or what to do next ───────────────────────── */}
+        {lockedIn && myNomination?.film && (
+          <LockedSubmission
+            film={myNomination.film as Film}
+            deadline={current?.nominationDeadline ?? null}
+            submitted={Number(counts?.submitted ?? 0)}
+            expected={Number(counts?.expected ?? guild.curators.length)}
+          />
+        )}
+
         {action && (
           <section className="border border-rule bg-paper-raised p-6">
             <p className="label-eyebrow">
@@ -167,13 +203,13 @@ export default async function GuildPage({
             </p>
             {action.label ? (
               <>
+                <p className="mt-2 text-sm text-ink-soft">{action.note}</p>
                 <Link
                   href={action.href}
-                  className="mt-3 inline-block text-3xl font-medium uppercase leading-none tracking-tight underline decoration-1 underline-offset-[6px] transition-colors hover:text-signal"
+                  className="mt-5 inline-block bg-signal px-7 py-3.5 text-sm font-medium uppercase tracking-[0.14em] text-paper transition-colors hover:bg-ink"
                 >
                   {action.label}
                 </Link>
-                <p className="mt-3 text-sm text-ink-soft">{action.note}</p>
               </>
             ) : (
               <p className="mt-3 text-sm text-ink-soft">{action.note}</p>

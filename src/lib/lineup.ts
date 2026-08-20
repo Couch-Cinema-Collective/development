@@ -59,6 +59,30 @@ export function currentFilm(
   );
 }
 
+/**
+ * True when the lineup exists but nothing has opened yet.
+ *
+ * Distinguishing this from "everything has closed" matters: both leave
+ * currentFilm() null, and conflating them told presidents their festival was
+ * over before it had started.
+ */
+export function notYetOpen(
+  lineup: LineupFilm[],
+  now: number = Date.now(),
+): boolean {
+  return (
+    lineup.length > 0 && lineup.every((f) => phaseOf(f, now) === "UPCOMING")
+  );
+}
+
+/** True when every film has run its course and the awards are next. */
+export function allClosed(
+  lineup: LineupFilm[],
+  now: number = Date.now(),
+): boolean {
+  return lineup.length > 0 && lineup.every((f) => phaseOf(f, now) === "CLOSED");
+}
+
 /** The next one up — what the "coming next" panel shows. */
 export function nextFilm(
   lineup: LineupFilm[],

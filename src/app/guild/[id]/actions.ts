@@ -104,8 +104,8 @@ export async function setLineup(
   });
   if (rpcError) {
     return {
-      error: rpcError.message.includes("No films")
-        ? "No curator has put a film up yet — there is nothing to schedule."
+      error: rpcError.message.includes("locked")
+        ? "No curator has locked a film in yet — there is nothing to schedule."
         : rpcError.message,
     };
   }
@@ -120,20 +120,33 @@ export async function setLineup(
   return { ok: true };
 }
 
-/** LINEUP_SET → SCREENING. The clock is already running; this just says so. */
+/**
+ * LINEUP_SET → SCREENING, via open_festival().
+ *
+ * This re-stamps every film's windows from the moment it is called, so the
+ * first film opens now rather than whenever the lineup happened to be drawn.
+ * A president who sits on a drawn lineup for three days waiting on stragglers
+ * should still get a festival that starts when they say it starts.
+ */
 export async function startScreening(
   festivalId: string,
 ): Promise<FestivalActionResult> {
   const { supabase, festival, error } = await requirePresident(festivalId);
   if (error || !festival) return { error: error ?? "Festival not found." };
 
-  const { error: stateError } = await supabase
-    .from("festivals")
-    .update({ state: "SCREENING" })
-    .eq("id", festivalId);
-  if (stateError) return { error: stateError.message };
+  const { error: rpcError } = await supabase.rpc("open_festival", {
+    fid: festivalId,
+  });
+  if (rpcError) return { error: rpcError.message };
+
+  await announce(festival.guild_id, {
+    title: "The festival is open",
+    body: "First film, first window. The clock is running.",
+    path: "/dashboard",
+  });
 
   revalidatePath(`/guild/${festival.guild_id}`);
+  revalidatePath("/dashboard");
   return { ok: true };
 }
 

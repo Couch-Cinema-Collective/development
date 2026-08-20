@@ -160,22 +160,40 @@ interface TmdbKeywordResponse {
   results: { id: number; name: string }[];
 }
 
+/** How many films the nomination grid aims to show before search kicks in. */
+const CATALOG_TARGET = 24;
+
 /**
  * A starting shelf for the nomination browse grid, matched to the festival's
- * category. Three passes, most precise first:
+ * theme. Four passes, most precise first:
  *   1. official TMDB genre ("Animation", "Spaghetti Westerns" → Western)
  *   2. keyword discovery ("french new wave", "heist" — movements and themes)
- *   3. plain title search, as a last resort
- * Results rank by vote count, so the shelf reads as the category's canon.
+ *   3. plain title search
+ *   4. a broad well-regarded top-up, so the grid is never nearly empty
+ *
+ * The passes accumulate rather than stopping at the first that returns
+ * anything: a narrow theme used to match two films by title and leave a
+ * curator staring at a two-poster grid, which reads as broken rather than
+ * specific. Precision still wins — earlier passes are placed first — but the
+ * shelf is filled out behind them.
  */
 export async function catalogForCategory(category: string): Promise<Film[]> {
   if (!isLive() || !category.trim()) return FIXTURE_FILMS;
 
   try {
-    let ids: number[] = [];
+    const ids: number[] = [];
+    const seen = new Set<number>();
+    const add = (results: { id: number }[]) => {
+      for (const r of results) {
+        if (seen.has(r.id)) continue;
+        seen.add(r.id);
+        ids.push(r.id);
+      }
+    };
+
+    const cat = category.toLowerCase();
 
     const { genres } = await tmdb<TmdbGenreList>("/genre/movie/list");
-    const cat = category.toLowerCase();
     const genre = genres.find((g) => {
       const name = g.name.toLowerCase();
       return cat.includes(name) || name.includes(cat);
@@ -187,40 +205,53 @@ export async function catalogForCategory(category: string): Promise<Film[]> {
         "vote_count.gte": "300",
         include_adult: "false",
       });
-      ids = results.slice(0, 12).map((r) => r.id);
+      add(results);
     }
 
-    if (!ids.length) {
+    if (ids.length < CATALOG_TARGET) {
       const { results: keywords } = await tmdb<TmdbKeywordResponse>(
         "/search/keyword",
         { query: category },
       );
-      const keywordIds = keywords.slice(0, 2).map((k) => k.id);
+      const keywordIds = keywords.slice(0, 3).map((k) => k.id);
       if (keywordIds.length) {
         const { results } = await tmdb<TmdbSearchResponse>("/discover/movie", {
           with_keywords: keywordIds.join("|"),
           sort_by: "vote_count.desc",
           include_adult: "false",
         });
-        ids = results.slice(0, 12).map((r) => r.id);
+        add(results);
       }
     }
 
-    if (!ids.length) {
+    if (ids.length < CATALOG_TARGET) {
       const { results } = await tmdb<TmdbSearchResponse>("/search/movie", {
         query: category,
         include_adult: "false",
       });
-      ids = results.slice(0, 12).map((r) => r.id);
+      add(results);
+    }
+
+    // Last resort: a broad, well-regarded shelf. Better a curator browses
+    // something and searches for what they actually want than sees an empty
+    // grid and assumes the app is broken.
+    if (ids.length < CATALOG_TARGET) {
+      const { results } = await tmdb<TmdbSearchResponse>("/discover/movie", {
+        sort_by: "vote_count.desc",
+        "vote_average.gte": "7",
+        "vote_count.gte": "1000",
+        include_adult: "false",
+      });
+      add(results);
     }
 
     const films = await Promise.all(
-      ids.map((id) => getFilm(id).catch(() => null)),
+      ids.slice(0, CATALOG_TARGET).map((id) => getFilm(id).catch(() => null)),
     );
     return films.filter((f): f is Film => f !== null);
   } catch {
-    // An empty grid with working search beats the wrong category's canon.
-    return [];
+    // Fixtures beat an empty grid: search still works either way.
+    return FIXTURE_FILMS;
   }
 }
 

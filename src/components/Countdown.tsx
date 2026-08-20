@@ -44,18 +44,21 @@ export function Countdown({
     return () => clearInterval(id);
   }, [deadline]);
 
+  // Scales with the viewport rather than sitting at a fixed 5xl: at phone
+  // width four two-digit numbers plus their labels overflowed the card and
+  // bled past its border.
   const numberClass =
     size === "large"
-      ? "text-5xl font-medium leading-none tracking-tight"
-      : "text-2xl font-medium leading-none tracking-tight";
+      ? "text-[clamp(1.75rem,7vw,3rem)] font-medium leading-none tracking-tight"
+      : "text-[clamp(1.25rem,4.5vw,1.5rem)] font-medium leading-none tracking-tight";
 
   if (!mounted) {
-    return <div className={size === "large" ? "h-[52px]" : "h-[30px]"} />;
+    return <div className={size === "large" ? "h-12" : "h-8"} />;
   }
 
   if (!time) {
     return (
-      <p className="text-2xl font-medium uppercase tracking-tight text-ink-faint">
+      <p className="text-balance text-xl font-medium uppercase leading-tight tracking-tight text-ink-faint">
         {expiredLabel}
       </p>
     );
@@ -71,10 +74,12 @@ export function Countdown({
 
   return (
     <div
-      className={`flex items-baseline gap-5 tabular-nums ${urgent ? "text-signal" : ""}`}
+      className={`flex max-w-full flex-wrap items-baseline gap-x-4 gap-y-1 tabular-nums ${
+        urgent ? "text-signal" : ""
+      }`}
     >
       {units.map((unit) => (
-        <div key={unit.label} className="flex items-baseline gap-1.5">
+        <div key={unit.label} className="flex shrink-0 items-baseline gap-1">
           <span className={numberClass}>
             {String(unit.value).padStart(2, "0")}
           </span>

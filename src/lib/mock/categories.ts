@@ -645,6 +645,630 @@ export const SEASON_CATEGORIES: SeasonCategory[] = [
       "Effects achieved in front of the lens — animatronics, prosthetics, miniatures, stunts. Everything is physically present, which is why it still holds up.",
     exemplars: ["The Thing", "Jurassic Park", "Mad Max: Fury Road", "Alien"],
   },
+  {
+    id: "mexican-cinema",
+    name: "Mexican Cinema",
+    family: "National",
+    blurb:
+      "From the studio melodramas of the Golden Age to the international run of the three amigos, a national cinema that keeps rediscovering how to make the intimate feel enormous.",
+    exemplars: [
+      "Roma",
+      "Y Tu Mamá También",
+      "Amores Perros",
+      "Los Olvidados",
+    ],
+  },
+  {
+    id: "hong-kong-action",
+    name: "Hong Kong Action Cinema",
+    family: "National",
+    blurb:
+      "Choreography as authorship. Stunt teams and wire work pushed the action sequence from a plot obligation into the reason the film exists, and half of Hollywood has been borrowing from it since.",
+    exemplars: [
+      "Hard Boiled",
+      "Police Story",
+      "A Better Tomorrow",
+      "Infernal Affairs",
+    ],
+  },
+  {
+    id: "iranian-cinema",
+    name: "Iranian Cinema",
+    family: "National",
+    blurb:
+      "Films made under censorship that turned restriction into method: children as protagonists, documentary textures, and endings that hand the judgement to the audience.",
+    exemplars: [
+      "Close-Up",
+      "A Separation",
+      "Taste of Cherry",
+      "Children of Heaven",
+    ],
+  },
+  {
+    id: "brazilian-cinema",
+    name: "Brazilian Cinema",
+    family: "National",
+    blurb:
+      "Cinema Novo and its descendants — hunger, favela, sertão — filmed with a hand-held urgency that treats poverty as a subject rather than a backdrop.",
+    exemplars: [
+      "City of God",
+      "Black God, White Devil",
+      "Central Station",
+      "Bacurau",
+    ],
+  },
+  {
+    id: "nollywood",
+    name: "Nigerian Cinema (Nollywood)",
+    family: "National",
+    blurb:
+      "The most prolific film industry on earth by volume, built on direct-to-video economics and a melodramatic register that answers to its own audience rather than to festivals.",
+    exemplars: [
+      "Lionheart",
+      "The Figurine",
+      "Living in Bondage",
+      "King of Boys",
+    ],
+  },
+  {
+    id: "spanish-cinema",
+    name: "Spanish Cinema",
+    family: "National",
+    blurb:
+      "Post-Franco cinema that went straight for the repressed: colour-saturated melodrama, Catholic guilt, and horror that treats the civil war as the original wound.",
+    exemplars: [
+      "Pan's Labyrinth",
+      "All About My Mother",
+      "The Spirit of the Beehive",
+      "Volver",
+    ],
+  },
+  {
+    id: "german-cinema",
+    name: "German Cinema",
+    family: "National",
+    blurb:
+      "A cinema twice rebuilt from ruins — Weimar experiment, then the New German Cinema of the seventies, then reunification — and permanently interested in complicity.",
+    exemplars: [
+      "Wings of Desire",
+      "Aguirre, the Wrath of God",
+      "The Lives of Others",
+      "Run Lola Run",
+    ],
+  },
+  {
+    id: "soviet-russian-cinema",
+    name: "Soviet & Russian Cinema",
+    family: "National",
+    blurb:
+      "From montage theory to the long take as an act of faith: a tradition that treats duration itself as the medium's most serious tool.",
+    exemplars: [
+      "Stalker",
+      "Come and See",
+      "Andrei Rublev",
+      "Battleship Potemkin",
+    ],
+  },
+  {
+    id: "taiwanese-cinema",
+    name: "Taiwanese Cinema",
+    family: "National",
+    blurb:
+      "The New Taiwan Cinema and after: static frames, extended silences, and family histories that carry the island's political history without ever stating it.",
+    exemplars: [
+      "Yi Yi",
+      "A Brighter Summer Day",
+      "A City of Sadness",
+      "Rebels of the Neon God",
+    ],
+  },
+  {
+    id: "west-african-cinema",
+    name: "West African Cinema",
+    family: "National",
+    blurb:
+      "Sembène onward — films made in African languages for African audiences, using folklore, satire and long takes to argue about independence and what followed it.",
+    exemplars: [
+      "Touki Bouki",
+      "Black Girl",
+      "Yeelen",
+      "Timbuktu",
+    ],
+  },
+  {
+    id: "kubrick",
+    name: "Stanley Kubrick Filmography",
+    family: "Auteur",
+    blurb:
+      "A dozen films across a dozen genres, each one a cold, symmetrical machine built to demonstrate that institutions are more frightening than monsters.",
+    exemplars: [
+      "2001: A Space Odyssey",
+      "The Shining",
+      "Dr. Strangelove",
+      "Barry Lyndon",
+    ],
+  },
+  {
+    id: "kurosawa",
+    name: "Akira Kurosawa Filmography",
+    family: "Auteur",
+    blurb:
+      "Weather as emotion, movement as character, and the wipe cut as a signature. The films Hollywood has been remaking for seventy years without quite matching.",
+    exemplars: [
+      "Seven Samurai",
+      "Rashomon",
+      "Ikiru",
+      "Ran",
+    ],
+  },
+  {
+    id: "miyazaki",
+    name: "Hayao Miyazaki Filmography",
+    family: "Auteur",
+    blurb:
+      "Hand-drawn animation that refuses villains, gives its heroines the work, and stops the plot dead whenever something is worth looking at.",
+    exemplars: [
+      "Spirited Away",
+      "My Neighbor Totoro",
+      "Princess Mononoke",
+      "Howl's Moving Castle",
+    ],
+  },
+  {
+    id: "tarantino",
+    name: "Quentin Tarantino Filmography",
+    family: "Auteur",
+    blurb:
+      "Genre pastiche assembled by a video-store memory: chapter headings, digressive dialogue, and violence that arrives after a very long wait.",
+    exemplars: [
+      "Pulp Fiction",
+      "Inglourious Basterds",
+      "Kill Bill: Vol. 1",
+      "Jackie Brown",
+    ],
+  },
+  {
+    id: "varda",
+    name: "Agnès Varda Filmography",
+    family: "Auteur",
+    blurb:
+      "Sixty years of films that dissolve the line between documentary and fiction, made with a curiosity about ordinary people that never curdles into condescension.",
+    exemplars: [
+      "Cléo from 5 to 7",
+      "The Gleaners and I",
+      "Vagabond",
+      "Faces Places",
+    ],
+  },
+  {
+    id: "wong-kar-wai",
+    name: "Wong Kar-wai Filmography",
+    family: "Auteur",
+    blurb:
+      "Step-printed motion, saturated interiors, and characters who narrate their own longing. Mood pursued at the expense of plot, deliberately.",
+    exemplars: [
+      "In the Mood for Love",
+      "Chungking Express",
+      "Happy Together",
+      "Fallen Angels",
+    ],
+  },
+  {
+    id: "bong-joon-ho",
+    name: "Bong Joon-ho Filmography",
+    family: "Auteur",
+    blurb:
+      "Tonal whiplash used as an argument: comedy, horror and social realism inside one scene, always circling class and the incompetence of institutions.",
+    exemplars: [
+      "Parasite",
+      "Memories of Murder",
+      "Mother",
+      "The Host",
+    ],
+  },
+  {
+    id: "villeneuve",
+    name: "Denis Villeneuve Filmography",
+    family: "Auteur",
+    blurb:
+      "Scale and dread in equal measure — enormous frames, minimal dialogue, and a recurring interest in people trying to communicate across an unbridgeable gap.",
+    exemplars: [
+      "Arrival",
+      "Blade Runner 2049",
+      "Sicario",
+      "Dune",
+    ],
+  },
+  {
+    id: "greta-gerwig",
+    name: "Greta Gerwig Filmography",
+    family: "Auteur",
+    blurb:
+      "Overlapping speech, unglamorous ambition, and heroines allowed to be both insufferable and right. Coming-of-age without the condescension.",
+    exemplars: [
+      "Lady Bird",
+      "Little Women",
+      "Barbie",
+      "Frances Ha",
+    ],
+  },
+  {
+    id: "pta",
+    name: "Paul Thomas Anderson Filmography",
+    family: "Auteur",
+    blurb:
+      "Sprawling ensembles narrowed over time into two-handers about domination, all of them scored like thrillers and shot like they cost more than they did.",
+    exemplars: [
+      "There Will Be Blood",
+      "Boogie Nights",
+      "Phantom Thread",
+      "Magnolia",
+    ],
+  },
+  {
+    id: "del-toro",
+    name: "Guillermo del Toro Filmography",
+    family: "Auteur",
+    blurb:
+      "Practical creature work in service of a consistent moral: the monsters are sympathetic, and the men in uniform are not.",
+    exemplars: [
+      "Pan's Labyrinth",
+      "The Shape of Water",
+      "The Devil's Backbone",
+      "Crimson Peak",
+    ],
+  },
+  {
+    id: "jane-campion",
+    name: "Jane Campion Filmography",
+    family: "Auteur",
+    blurb:
+      "Landscape as psychology, and a career-long attention to desire, power and the violence men perform to stay legible to each other.",
+    exemplars: [
+      "The Piano",
+      "The Power of the Dog",
+      "Bright Star",
+      "Sweetie",
+    ],
+  },
+  {
+    id: "italian-neorealism",
+    name: "Italian Neorealism",
+    family: "Movement",
+    blurb:
+      "Post-war Italy shot on location with non-professional actors, because the studios were wrecked and the subject was people with nothing. Plot reduced to circumstance.",
+    exemplars: [
+      "Bicycle Thieves",
+      "Rome, Open City",
+      "La Terra Trema",
+      "Umberto D.",
+    ],
+  },
+  {
+    id: "german-expressionism",
+    name: "German Expressionism",
+    family: "Movement",
+    blurb:
+      "Weimar cinema built out of painted shadows and impossible architecture, externalising a character's derangement by warping the set around them.",
+    exemplars: [
+      "The Cabinet of Dr. Caligari",
+      "Metropolis",
+      "Nosferatu",
+      "M",
+    ],
+  },
+  {
+    id: "dogme-95",
+    name: "Dogme 95",
+    family: "Movement",
+    blurb:
+      "A Danish vow of chastity: location sound, hand-held camera, no score, no props brought in. A manifesto designed to make cheating visible.",
+    exemplars: [
+      "Festen",
+      "The Idiots",
+      "Italian for Beginners",
+      "Mifune's Last Song",
+    ],
+  },
+  {
+    id: "soviet-montage",
+    name: "Soviet Montage",
+    family: "Movement",
+    blurb:
+      "The theory that meaning lives in the cut rather than the shot, tested at scale on films that were also, unambiguously, propaganda.",
+    exemplars: [
+      "Battleship Potemkin",
+      "Man with a Movie Camera",
+      "Strike",
+      "October",
+    ],
+  },
+  {
+    id: "czech-new-wave",
+    name: "Czech New Wave",
+    family: "Movement",
+    blurb:
+      "Absurdist comedy and non-actors under a regime that eventually banned most of it — films that argue by being funny about things that are not.",
+    exemplars: [
+      "Closely Watched Trains",
+      "Daisies",
+      "The Firemen's Ball",
+      "Marketa Lazarová",
+    ],
+  },
+  {
+    id: "japanese-new-wave",
+    name: "Japanese New Wave",
+    family: "Movement",
+    blurb:
+      "A generation attacking the studio humanism that preceded it: sexual frankness, political fury, and formal experiment aimed squarely at their elders.",
+    exemplars: [
+      "Woman in the Dunes",
+      "In the Realm of the Senses",
+      "Cruel Story of Youth",
+      "Branded to Kill",
+    ],
+  },
+  {
+    id: "cinema-verite",
+    name: "Cinéma Vérité & Direct Cinema",
+    family: "Movement",
+    blurb:
+      "Lightweight cameras and sync sound made it possible to simply follow someone. The argument that followed — whether the camera changes what it records — has never been settled.",
+    exemplars: [
+      "Salesman",
+      "Chronicle of a Summer",
+      "Dont Look Back",
+      "Grey Gardens",
+    ],
+  },
+  {
+    id: "kitchen-sink",
+    name: "British Kitchen Sink Realism",
+    family: "Movement",
+    blurb:
+      "Angry young men in northern industrial towns, shot in grey and filled with dialogue about class that British cinema had previously kept off screen.",
+    exemplars: [
+      "Saturday Night and Sunday Morning",
+      "A Taste of Honey",
+      "Look Back in Anger",
+      "Kes",
+    ],
+  },
+  {
+    id: "hong-kong-new-wave",
+    name: "Hong Kong New Wave",
+    family: "Movement",
+    blurb:
+      "Television-trained directors who brought location shooting and genre energy back to Cantonese cinema, and set up everything that followed in the eighties.",
+    exemplars: [
+      "Boat People",
+      "The Butterfly Murders",
+      "Father and Son",
+      "Dangerous Encounters of the First Kind",
+    ],
+  },
+  {
+    id: "iranian-new-wave",
+    name: "Iranian New Wave",
+    family: "Movement",
+    blurb:
+      "Poetic realism made largely with children and non-actors, working around censorship by making the small domestic situation carry everything.",
+    exemplars: [
+      "Where Is the Friend's House?",
+      "The Cow",
+      "The Runner",
+      "Bashu, the Little Stranger",
+    ],
+  },
+  {
+    id: "mumblecore",
+    name: "Mumblecore",
+    family: "Movement",
+    blurb:
+      "American micro-budget films of the 2000s: improvised dialogue, digital video, twenty-somethings failing to say what they mean, at length.",
+    exemplars: [
+      "Funny Ha Ha",
+      "Hannah Takes the Stairs",
+      "Computer Chess",
+      "Humpday",
+    ],
+  },
+  {
+    id: "la-rebellion",
+    name: "The L.A. Rebellion",
+    family: "Movement",
+    blurb:
+      "Black filmmakers out of UCLA in the seventies who rejected Hollywood's terms entirely, borrowing from neorealism and African cinema instead.",
+    exemplars: [
+      "Killer of Sheep",
+      "Daughters of the Dust",
+      "Bush Mama",
+      "To Sleep with Anger",
+    ],
+  },
+  {
+    id: "new-queer-cinema",
+    name: "New Queer Cinema",
+    family: "Movement",
+    blurb:
+      "Early-nineties films made in the middle of the AIDS crisis that refused respectability politics — formally aggressive, morally unapologetic.",
+    exemplars: [
+      "Paris Is Burning",
+      "Poison",
+      "My Own Private Idaho",
+      "The Living End",
+    ],
+  },
+  {
+    id: "new-hollywood",
+    name: "New Hollywood",
+    family: "Movement",
+    blurb:
+      "The decade the studios lost control and handed it to film-school directors: downbeat endings, location shooting, and protagonists who lose.",
+    exemplars: [
+      "The Godfather",
+      "Chinatown",
+      "Taxi Driver",
+      "Easy Rider",
+    ],
+  },
+  {
+    id: "silent-era",
+    name: "The Silent Era",
+    family: "Era",
+    blurb:
+      "Cinema before it could speak, and therefore fluent in everything else: gesture, cutting, camera movement, and a physical comedy nobody has bettered.",
+    exemplars: [
+      "Sunrise: A Song of Two Humans",
+      "The General",
+      "City Lights",
+      "The Passion of Joan of Arc",
+    ],
+  },
+  {
+    id: "pre-code",
+    name: "Pre-Code Hollywood",
+    family: "Era",
+    blurb:
+      "The five years between sound and the enforcement of the Production Code, when American films were briefly allowed sex, cynicism and unpunished crime.",
+    exemplars: [
+      "Baby Face",
+      "Scarface",
+      "Trouble in Paradise",
+      "I Am a Fugitive from a Chain Gang",
+    ],
+  },
+  {
+    id: "post-war-hollywood",
+    name: "Post-War Hollywood",
+    family: "Era",
+    blurb:
+      "Returning soldiers, housing shortages and a new pessimism working its way into studio pictures that were still, officially, entertainments.",
+    exemplars: [
+      "The Best Years of Our Lives",
+      "Sunset Boulevard",
+      "Its a Wonderful Life",
+      "In a Lonely Place",
+    ],
+  },
+  {
+    id: "blockbuster-eighties",
+    name: "The Blockbuster Eighties",
+    family: "Era",
+    blurb:
+      "High-concept, wide-release, merchandised. The decade the summer movie became the business model and everything else became counter-programming.",
+    exemplars: [
+      "Back to the Future",
+      "Raiders of the Lost Ark",
+      "Die Hard",
+      "E.T. the Extra-Terrestrial",
+    ],
+  },
+  {
+    id: "nineties-indie",
+    name: "The Nineties Independent Boom",
+    family: "Era",
+    blurb:
+      "Sundance, Miramax and a generation who financed first features on credit cards, briefly making the American independent film a commercial category.",
+    exemplars: [
+      "Clerks",
+      "Reservoir Dogs",
+      "Slacker",
+      "Welcome to the Dollhouse",
+    ],
+  },
+  {
+    id: "y2k-anxiety",
+    name: "Y2K & Millennium Anxiety",
+    family: "Era",
+    blurb:
+      "Films made either side of 2000 about simulation, corporate dread and the suspicion that the whole arrangement was fake.",
+    exemplars: [
+      "The Matrix",
+      "Fight Club",
+      "American Beauty",
+      "eXistenZ",
+    ],
+  },
+  {
+    id: "roaring-twenties",
+    name: "The Roaring Twenties",
+    family: "Era",
+    blurb:
+      "Prohibition, jazz, new money and the crash waiting at the end of it — a decade cinema keeps returning to for the costumes and the moral.",
+    exemplars: [
+      "The Great Gatsby",
+      "Some Like It Hot",
+      "Chicago",
+      "Millers Crossing",
+    ],
+  },
+  {
+    id: "victorian-era",
+    name: "Victorian Era Movies",
+    family: "Era",
+    blurb:
+      "Gaslight, empire, and repression — a setting that gives a film both period spectacle and a ready-made argument about what people were forbidden to say.",
+    exemplars: [
+      "The Piano",
+      "Bram Stokers Dracula",
+      "The Age of Innocence",
+      "Sherlock Holmes",
+    ],
+  },
+  {
+    id: "medieval",
+    name: "Medieval Movies",
+    family: "Era",
+    blurb:
+      "Mud, faith and violence. Whether played straight or as farce, the period asks what people do when the institutions holding them together are the only ones there are.",
+    exemplars: [
+      "The Seventh Seal",
+      "Monty Python and the Holy Grail",
+      "The Name of the Rose",
+      "The Green Knight",
+    ],
+  },
+  {
+    id: "depression-era",
+    name: "Depression-Era America",
+    family: "Era",
+    blurb:
+      "Dust, migration and New Deal desperation, filmed either as social protest or as the backdrop for people who decided to rob banks instead.",
+    exemplars: [
+      "The Grapes of Wrath",
+      "Bonnie and Clyde",
+      "Paper Moon",
+      "O Brother, Where Art Thou?",
+    ],
+  },
+  {
+    id: "swinging-sixties",
+    name: "The Swinging Sixties",
+    family: "Era",
+    blurb:
+      "Pop art, permissiveness and a youth culture that films had to keep up with — usually shot in colour that has aged into its own signature.",
+    exemplars: [
+      "Blow-Up",
+      "A Hard Days Night",
+      "Alfie",
+      "If....",
+    ],
+  },
+  {
+    id: "streaming-era",
+    name: "The Streaming Era",
+    family: "Era",
+    blurb:
+      "Films made for the algorithm and the living room rather than the multiplex: longer, stranger, and released without a weekend to open on.",
+    exemplars: [
+      "Roma",
+      "The Irishman",
+      "Everything Everywhere All at Once",
+      "Marriage Story",
+    ],
+  },
 ];
 
 export const CATEGORIES_BY_ID = new Map(

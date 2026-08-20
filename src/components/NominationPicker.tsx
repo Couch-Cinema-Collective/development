@@ -3,7 +3,11 @@
 import { useEffect, useState, useTransition } from "react";
 
 import { FilmPoster } from "./FilmPoster";
-import { nominate, withdrawNomination } from "@/app/nominate/actions";
+import {
+  lockNomination,
+  nominate,
+  withdrawNomination,
+} from "@/app/nominate/actions";
 import { BEST_OF_THE_FEST, type Film } from "@/lib/types";
 
 export interface NominationPickerProps {
@@ -13,6 +17,8 @@ export interface NominationPickerProps {
   catalog: Film[];
   /** The curator's current pick, if they have made one. */
   initialPick: Film | null;
+  /** True once the pick has been committed to the programme. */
+  initialLocked: boolean;
   initialSubmitted: number;
   expected: number;
   /** False when running on fixtures rather than live TMDB. */
@@ -31,11 +37,13 @@ export function NominationPicker({
   theme,
   catalog,
   initialPick,
+  initialLocked,
   initialSubmitted,
   expected,
   live,
 }: NominationPickerProps) {
   const [pick, setPick] = useState<Film | null>(initialPick);
+  const [locked, setLocked] = useState(initialLocked);
   const [submitted, setSubmitted] = useState(initialSubmitted);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Film[] | null>(null);
@@ -64,7 +72,28 @@ export function NominationPicker({
     return () => clearTimeout(timer);
   }, [query]);
 
+  function lockIn() {
+    if (!pick) return;
+    if (
+      !window.confirm(
+        `Lock in ${pick.title}? This submits it to the programme and cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+    setError(null);
+    startTransition(async () => {
+      const result = await lockNomination(festivalId);
+      if (result.error) setError(result.error);
+      else {
+        setLocked(true);
+        if (typeof result.submitted === "number") setSubmitted(result.submitted);
+      }
+    });
+  }
+
   function choose(film: Film) {
+    if (locked) return;
     setError(null);
     const previous = pick;
     setPick(film);
@@ -96,6 +125,53 @@ export function NominationPicker({
 
   const browsing = results ?? catalog;
 
+  // Once locked there is nothing left to do here — showing a live search box
+  // under a submitted film invites a curator to try to change it.
+  if (locked && pick) {
+    return (
+      <div className="grid gap-10 lg:grid-cols-[1fr_300px]">
+        <section className="min-w-0 border border-ink bg-paper-raised p-6">
+          <p className="label-eyebrow text-signal">Locked in</p>
+          <div className="mt-5 flex flex-wrap items-start gap-6">
+            <div className="w-28 shrink-0">
+              <FilmPoster film={pick} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-3xl font-medium uppercase leading-none tracking-tight">
+                {pick.title}
+              </h2>
+              <p className="mt-2 text-sm text-ink-faint">
+                {pick.year}
+                {pick.director ? ` · ${pick.director}` : ""}
+              </p>
+              <p className="mt-5 max-w-md text-sm leading-relaxed text-ink-soft">
+                Your submission is in the programme. Nothing more is needed from
+                you — the other curators are still picking theirs, and the
+                festival starts once your president draws the lineup.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <aside className="lg:sticky lg:top-8 lg:self-start">
+          <section className="border border-rule bg-paper-raised px-5 py-5">
+            <h2 className="label-eyebrow border-b border-rule pb-2">
+              The programme
+            </h2>
+            <p className="mt-4 text-4xl font-medium tabular-nums leading-none">
+              {submitted}
+              <span className="text-ink-faint"> / {expected}</span>
+            </p>
+            <p className="mt-2 text-xs leading-relaxed text-ink-faint">
+              Curators who have locked a film in. Titles stay secret until the
+              lineup is drawn.
+            </p>
+          </section>
+        </aside>
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-10 lg:grid-cols-[1fr_300px]">
       <div className="min-w-0">
@@ -124,14 +200,28 @@ export function NominationPicker({
                     {pick.overview}
                   </p>
                 )}
-                <button
-                  type="button"
-                  onClick={withdraw}
-                  disabled={pending}
-                  className="mt-5 border border-rule px-5 py-2.5 text-xs font-medium uppercase tracking-[0.12em] transition-colors hover:border-ink disabled:opacity-50"
-                >
-                  Withdraw
-                </button>
+                <div className="mt-6 flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={lockIn}
+                    disabled={pending}
+                    className="bg-signal px-7 py-3.5 text-sm font-medium uppercase tracking-[0.14em] text-paper transition-colors hover:bg-ink disabled:opacity-40"
+                  >
+                    {pending ? "Working…" : "Lock in this film"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={withdraw}
+                    disabled={pending}
+                    className="border border-rule px-5 py-3 text-xs font-medium uppercase tracking-[0.12em] transition-colors hover:border-ink disabled:opacity-50"
+                  >
+                    Withdraw
+                  </button>
+                </div>
+                <p className="mt-3 max-w-md text-xs leading-relaxed text-ink-faint">
+                  Locking submits it to the programme and can&apos;t be undone.
+                  Only locked films make the lineup.
+                </p>
               </div>
             </div>
           ) : (
@@ -237,9 +327,8 @@ export function NominationPicker({
             <span className="text-ink-faint"> / {expected}</span>
           </p>
           <p className="mt-2 text-xs leading-relaxed text-ink-faint">
-            Curators who have put a film up. Titles stay secret until the
-            president sets the lineup — nobody gets to react to anyone
-            else&apos;s pick.
+            Curators who have locked a film in. Titles stay secret until the
+            lineup is drawn — nobody gets to react to anyone else&apos;s pick.
           </p>
         </section>
 

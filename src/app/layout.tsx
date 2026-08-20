@@ -4,10 +4,14 @@ import Image from "next/image";
 import Link from "next/link";
 import "./globals.css";
 import { AuthStatus } from "@/components/AuthStatus";
+import { GuildMenu } from "@/components/GuildMenu";
+import { WelcomeTour } from "@/components/WelcomeTour";
 import { PushRegistrar } from "@/components/PushRegistrar";
 import { SiteNav } from "@/components/SiteNav";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
+import { getUserMemberships } from "@/lib/guilds";
+import type { GuildRole } from "@/lib/types";
 
 // Geometric grotesque, the closest free match to the wordmark in the logo lockup.
 const jost = Jost({
@@ -73,14 +77,31 @@ export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   let signedIn = false;
+  let guilds: { guildId: string; guildName: string; role: string }[] = [];
   if (isSupabaseConfigured()) {
     const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
     signedIn = Boolean(user);
+    if (signedIn) {
+      guilds = (await getUserMemberships()).map((m) => ({
+        guildId: m.guildId,
+        guildName: m.guildName,
+        role: m.role,
+      }));
+    }
   }
   const nav = signedIn ? [...PUBLIC_NAV, ...MEMBER_NAV] : PUBLIC_NAV;
+
+  // The tour explains the rules of the most demanding chair the member holds:
+  // a president needs the curator rules too, a curator needs the critic rules.
+  // Someone with no guild yet gets the general version.
+  const tourRole: GuildRole = guilds.some((g) => g.role === "president")
+    ? "president"
+    : guilds.some((g) => g.role === "curator")
+      ? "curator"
+      : "critic";
 
   return (
     <html lang="en" className={jost.variable}>
@@ -100,11 +121,16 @@ export default async function RootLayout({
               />
             </Link>
 
-            <SiteNav items={nav} authSlot={<AuthStatus />} />
+            <SiteNav
+              items={nav}
+              guildSlot={signedIn ? <GuildMenu guilds={guilds} /> : null}
+              authSlot={<AuthStatus />}
+            />
           </div>
         </header>
 
         <PushRegistrar signedIn={signedIn} />
+        {signedIn && <WelcomeTour role={tourRole} />}
 
         {children}
 
