@@ -34,7 +34,9 @@ export async function createGuild(
   if (error) return { error: error.message };
 
   revalidatePath("/welcome");
-  redirect(`/guild/${id}`);
+  // Season setup comes before invites (design decision): land the new
+  // president in the wizard; the guild page unlocks the invite link after.
+  redirect(`/commissioner/new?guild=${id}`);
 }
 
 /** Player path: invite code → membership, via the join_guild RPC. */

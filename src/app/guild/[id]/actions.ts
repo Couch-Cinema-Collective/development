@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { toPoolRow, type PoolRpcRow } from "@/lib/nominations";
 import { scoresFor } from "@/lib/scores";
 import { createClient } from "@/lib/supabase/server";
+import { guildMemberIds, notifyMembers } from "@/lib/notify";
 
 export type SeasonActionResult = { error?: string };
 
@@ -104,8 +105,29 @@ export async function lockSlate(seasonId: string): Promise<SeasonActionResult> {
     .eq("id", seasonId);
   if (stateError) return { error: stateError.message };
 
+  await announce(season.guild_id, {
+    title: "The slate is set",
+    body: "Nominations are closed. Come and see what your guild picked.",
+    path: "/season",
+  });
+
   revalidatePath(`/guild/${season.guild_id}`);
   return {};
+}
+
+/**
+ * Season beats, pushed to every member's phone. Deliberately non-blocking: a
+ * push failure must never fail the transition that triggered it.
+ */
+async function announce(
+  guildId: string,
+  message: { title: string; body: string; path: string },
+) {
+  try {
+    await notifyMembers(await guildMemberIds(guildId), message);
+  } catch {
+    // Notifications are a courtesy; the season moves on regardless.
+  }
 }
 
 /** The commissioner-driven forward transitions outside lock and publish. */
@@ -130,6 +152,20 @@ export async function advanceSeason(
     .eq("id", seasonId);
   if (stateError) return { error: stateError.message };
 
+  if (to === "VOTING") {
+    await announce(season.guild_id, {
+      title: "Voting is open",
+      body: "One pick per award. Finish the slate to unlock your ballot.",
+      path: "/vote",
+    });
+  } else if (to === "WATCHING") {
+    await announce(season.guild_id, {
+      title: "The season is on",
+      body: "Watch on your own time and mark films off as you go.",
+      path: "/season",
+    });
+  }
+
   revalidatePath(`/guild/${season.guild_id}`);
   return {};
 }
@@ -148,6 +184,12 @@ export async function publishSeason(
     sid: seasonId,
   });
   if (rpcError) return { error: rpcError.message };
+
+  await announce(season.guild_id, {
+    title: "The envelopes are open",
+    body: "Results are in. See which of your nominations took an award.",
+    path: "/ceremony",
+  });
 
   revalidatePath(`/guild/${season.guild_id}`);
   return {};

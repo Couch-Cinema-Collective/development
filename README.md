@@ -12,15 +12,14 @@ cp .env.example .env.local   # then fill in — see below
 npm run dev                  # http://localhost:3000
 ```
 
-**Only TMDB is required.** Everything else degrades gracefully: without OMDb you
-lose the IMDb/RT/Metacritic scores, without Supabase auth is hidden and every
-page is public, without Discord that panel just sits empty. The app boots and is
-fully browsable with a TMDB key alone.
+**Only TMDB is required.** Everything else degrades gracefully: without Supabase
+auth is hidden and every page is public, without Discord that panel just sits
+empty, without APNs no notifications send. The app boots and is fully browsable
+with a TMDB key alone.
 
 | Variable | Needed for | Where to get it |
 |---|---|---|
 | `TMDB_READ_TOKEN` | Everything — the film catalog | themoviedb.org → Settings → API |
-| `OMDB_API_KEY` | IMDb / RT / Metacritic scores | omdbapi.com — **click the activation email** |
 | `NEXT_PUBLIC_SUPABASE_*` | Sign-in, protected routes | Supabase → Project Settings → API Keys |
 | `NEXT_PUBLIC_DISCORD_*` | Server presence panel | Discord → Server Settings → Engagement → Widget |
 | `DISCORD_WEBHOOK_URL` | Posting announcements | Discord → Server Settings → Integrations → Webhooks |

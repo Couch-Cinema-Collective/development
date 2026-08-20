@@ -89,6 +89,22 @@ export default async function InSeasonPage({
     : { data: [] };
   const nameById = new Map((profiles ?? []).map((p) => [p.id, p.full_name]));
 
+  // Upvotes, counted from the rows rather than a stored tally.
+  const reviewIds = (reviewRows ?? []).map((r) => r.id);
+  const { data: voteRows } = reviewIds.length
+    ? await supabase
+        .from("review_votes")
+        .select("review_id, user_id")
+        .in("review_id", reviewIds)
+    : { data: [] };
+
+  const upvoteCount = new Map<string, number>();
+  const upvotedByMe = new Set<string>();
+  for (const v of voteRows ?? []) {
+    upvoteCount.set(v.review_id, (upvoteCount.get(v.review_id) ?? 0) + 1);
+    if (v.user_id === user.id) upvotedByMe.add(v.review_id);
+  }
+
   const reviews: RoomReview[] = (reviewRows ?? []).map((r) => ({
     id: r.id,
     tmdbId: r.tmdb_id,
@@ -96,6 +112,8 @@ export default async function InSeasonPage({
     memberName: nameById.get(r.user_id) || "Member",
     rating: Number(r.rating),
     body: r.body,
+    upvotes: upvoteCount.get(r.id) ?? 0,
+    upvotedByMe: upvotedByMe.has(r.id),
   }));
 
   return (

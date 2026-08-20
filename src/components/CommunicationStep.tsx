@@ -1,11 +1,139 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 
 import { DiscordGuide } from "./DiscordGuide";
 import { CopyButton } from "./CopyButton";
+import { saveDiscordSettings } from "@/app/guild/[id]/discord-actions";
 
 type Channel = "discord" | "text" | "email";
+
+/**
+ * Discord has no deep link that opens the create-server dialog directly, so
+ * this lands people in the app where the + button lives.
+ */
+const DISCORD_APP_URL = "https://discord.com/channels/@me";
+
+function DiscordSettingsForm({ guildId }: { guildId: string }) {
+  const [serverId, setServerId] = useState("");
+  const [inviteUrl, setInviteUrl] = useState("");
+  const [webhookUrl, setWebhookUrl] = useState("");
+  const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  const nothingEntered = !serverId.trim() && !inviteUrl.trim() && !webhookUrl.trim();
+
+  function save() {
+    setStatus(null);
+    setError(null);
+    startTransition(async () => {
+      const result = await saveDiscordSettings(guildId, {
+        serverId,
+        inviteUrl,
+        webhookUrl,
+      });
+      if (result.error) setError(result.error);
+      else setStatus("Saved. Announcements will post to your channel.");
+    });
+  }
+
+  return (
+    <div className="mt-8">
+      <p className="max-w-lg text-sm leading-relaxed text-ink-soft">
+        Connect your guild&apos;s own Discord server and season announcements —
+        nominations opening, the slate reveal, voting, the ceremony — post
+        themselves. You&apos;ll need three things from Discord: your{" "}
+        <strong>Server ID</strong>, an <strong>invite link</strong>, and a{" "}
+        <strong>webhook URL</strong>.
+      </p>
+
+      <p className="mt-4 flex flex-wrap items-center gap-3 text-sm text-ink-soft">
+        <span>Don&apos;t have a server yet?</span>
+        <a
+          href={DISCORD_APP_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="border border-ink px-4 py-2 text-xs uppercase tracking-[0.1em] transition-colors hover:bg-ink hover:text-paper"
+        >
+          Start one on Discord ↗
+        </a>
+        <span className="text-xs text-ink-faint">
+          Opens Discord — hit the <strong>+</strong> in the left rail, then
+          &ldquo;Create My Own&rdquo;.
+        </span>
+      </p>
+
+      <div className="mt-8 grid gap-5 border border-ink bg-paper-raised p-6 sm:grid-cols-2">
+        <Field
+          label="Server ID"
+          value={serverId}
+          onChange={setServerId}
+          placeholder="1536834147274719342"
+        />
+        <Field
+          label="Invite link"
+          value={inviteUrl}
+          onChange={setInviteUrl}
+          placeholder="https://discord.gg/…"
+        />
+        <div className="sm:col-span-2">
+          <Field
+            label="Webhook URL — where announcements post"
+            value={webhookUrl}
+            onChange={setWebhookUrl}
+            placeholder="https://discord.com/api/webhooks/…"
+          />
+          <p className="mt-2 text-xs text-ink-faint">
+            Treat this one like a password — anyone holding it can post to your
+            channel. It&apos;s stored server-side and never shown again.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-4 sm:col-span-2">
+          <button
+            type="button"
+            onClick={save}
+            disabled={pending || nothingEntered}
+            className="bg-ink px-6 py-3 text-xs uppercase tracking-[0.12em] text-paper transition-colors hover:bg-signal disabled:opacity-30 disabled:hover:bg-ink"
+          >
+            {pending ? "Saving…" : "Save Discord settings"}
+          </button>
+          {status && <span className="text-xs text-signal">{status}</span>}
+          {error && <span className="text-xs text-signal">{error}</span>}
+        </div>
+      </div>
+
+      <div className="mt-8">
+        <DiscordGuide />
+      </div>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <label className="block">
+      <span className="label-eyebrow block">{label}</span>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="mt-2 w-full border-b border-rule bg-transparent pb-2 font-mono text-sm outline-none placeholder:text-ink-faint focus:border-signal"
+      />
+    </label>
+  );
+}
 
 const CHANNELS: { id: Channel; label: string; note: string }[] = [
   { id: "discord", label: "Discord", note: "Recommended" },
@@ -41,9 +169,11 @@ function templates(guildName: string, categoryName: string) {
 }
 
 export function CommunicationStep({
+  guildId,
   guildName,
   categoryName,
 }: {
+  guildId: string;
   guildName: string;
   categoryName: string;
 }) {
@@ -77,19 +207,7 @@ export function CommunicationStep({
       </ul>
 
       {channel === "discord" ? (
-        <div className="mt-8">
-          <p className="max-w-lg text-sm leading-relaxed text-ink-soft">
-            Connect your guild&apos;s own Discord server and season
-            announcements — nominations opening, the slate reveal, voting,
-            the ceremony — post themselves. You&apos;ll need three things from
-            Discord: your <strong>Server ID</strong>, an{" "}
-            <strong>invite link</strong>, and a <strong>webhook URL</strong>.
-            The walkthrough below shows exactly where each one lives.
-          </p>
-          <div className="mt-6">
-            <DiscordGuide />
-          </div>
-        </div>
+        <DiscordSettingsForm guildId={guildId} />
       ) : (
         <div className="mt-8">
           <p className="max-w-lg text-sm leading-relaxed text-ink-soft">

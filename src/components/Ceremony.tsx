@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 
 import { FilmPoster } from "./FilmPoster";
+import { isNative, shareImage } from "@/lib/native";
 import type { AwardResult, Film, Member } from "@/lib/types";
 
 interface CeremonyProps {
@@ -161,6 +162,20 @@ function Toolbar({ onShare }: { onShare: () => void }) {
 
 const CARD = 1080;
 
+/**
+ * The horizontal lockup, drawn onto the share card. Resolves to null if the
+ * asset can't load so a missing file degrades to the typed wordmark rather
+ * than leaving the corner empty.
+ */
+function loadLogo(): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const img = new window.Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = "/brand/Cinema_logo_black_hor.png";
+  });
+}
+
 function wrap(
   ctx: CanvasRenderingContext2D,
   text: string,
@@ -211,13 +226,15 @@ function SharePanel({
     if (!ctx) return;
 
     await document.fonts.ready;
+    // Same-origin asset, so the canvas is never tainted and toDataURL works.
+    const logo = await loadLogo();
 
-    ctx.fillStyle = "#0b0b0b";
+    ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, CARD, CARD);
 
     const pad = 88;
 
-    ctx.fillStyle = "rgba(247,245,240,0.45)";
+    ctx.fillStyle = "rgba(11,11,11,0.5)";
     ctx.font = "500 26px Jost, sans-serif";
     ctx.letterSpacing = "5px";
     ctx.fillText(
@@ -233,46 +250,57 @@ function SharePanel({
     ctx.letterSpacing = "6px";
     ctx.fillText(result.awardName.toUpperCase(), pad, pad + 190);
 
-    ctx.fillStyle = "#f7f5f0";
+    ctx.fillStyle = "#0b0b0b";
     ctx.letterSpacing = "-1px";
     ctx.font = "500 104px Jost, sans-serif";
     const lines = wrap(ctx, film.title.toUpperCase(), CARD - pad * 2);
     lines.forEach((line, i) => ctx.fillText(line, pad, 500 + i * 108));
 
-    ctx.fillStyle = "rgba(247,245,240,0.55)";
+    ctx.fillStyle = "rgba(11,11,11,0.55)";
     ctx.letterSpacing = "0px";
     ctx.font = "400 34px Jost, sans-serif";
     ctx.fillText(`${film.director} · ${film.year}`, pad, 500 + lines.length * 108 + 40);
 
-    ctx.fillStyle = "rgba(247,245,240,0.35)";
+    ctx.fillStyle = "rgba(11,11,11,0.4)";
     ctx.font = "500 24px Jost, sans-serif";
     ctx.letterSpacing = "4px";
     ctx.fillText("NOMINATED BY", pad, CARD - pad - 96);
 
-    ctx.fillStyle = "#f7f5f0";
+    ctx.fillStyle = "#0b0b0b";
     ctx.font = "400 40px Jost, sans-serif";
     ctx.letterSpacing = "0px";
     ctx.fillText(names(result.nominatorIds).join(" · "), pad, CARD - pad - 44);
 
-    ctx.fillStyle = "rgba(247,245,240,0.3)";
-    ctx.font = "500 22px Jost, sans-serif";
-    ctx.letterSpacing = "4px";
-    ctx.textAlign = "right";
-    ctx.fillText("COUCH CINEMA COLLECTIVE", CARD - pad, CARD - pad - 44);
-    ctx.textAlign = "left";
+    // Real lockup rather than a typed-out wordmark, bottom-right, height-locked.
+    if (logo) {
+      const height = 68;
+      const width = (logo.width / logo.height) * height;
+      ctx.drawImage(logo, CARD - pad - width, CARD - pad - height, width, height);
+    } else {
+      ctx.fillStyle = "rgba(11,11,11,0.35)";
+      ctx.font = "500 22px Jost, sans-serif";
+      ctx.letterSpacing = "4px";
+      ctx.textAlign = "right";
+      ctx.fillText("COUCH CINEMA COLLECTIVE", CARD - pad, CARD - pad - 44);
+      ctx.textAlign = "left";
+    }
   }, [film, names, result, seasonCategory, seasonNumber]);
 
   const download = async () => {
     await draw();
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const link = document.createElement("a");
-    link.download = `${result.awardId}-${film?.title ?? "award"}.png`.replace(
+
+    const filename = `${result.awardId}-${film?.title ?? "award"}.png`.replace(
       /\s+/g,
       "-",
     );
-    link.href = canvas.toDataURL("image/png");
-    link.click();
+    // On device this opens the iOS share sheet; in a browser it downloads.
+    await shareImage(
+      canvas.toDataURL("image/png"),
+      filename,
+      `${result.awardName} — ${film?.title ?? ""}`,
+    );
   };
 
   return (
@@ -293,12 +321,12 @@ function SharePanel({
           ref={canvasRef}
           width={CARD}
           height={CARD}
-          className="mt-5 aspect-square w-full border border-rule bg-ink"
+          className="mt-5 aspect-square w-full border border-rule bg-white"
         />
 
         <p className="mt-3 text-xs text-ink-faint">
           1080 × 1080, sized for Instagram and messaging. Press render, then
-          download.
+          {isNative() ? "share" : "download"}.
         </p>
 
         <div className="mt-5 flex flex-wrap items-center gap-3">
@@ -326,7 +354,7 @@ function SharePanel({
             onClick={download}
             className="bg-signal px-4 py-2.5 text-xs uppercase tracking-[0.12em] text-paper transition-colors hover:bg-ink"
           >
-            Download
+            {isNative() ? "Share" : "Download"}
           </button>
         </div>
       </div>

@@ -164,6 +164,7 @@ export function SeasonWizard({
               blurb="Optional, and skippable. Pick how your guild talks — we recommend wiring up Discord so announcements post themselves, but a group text or an email thread works too."
             />
             <CommunicationStep
+              guildId={guildId}
               guildName={guildName}
               categoryName={categoryName}
             />
@@ -219,13 +220,13 @@ function StepRail({
   canAdvance: boolean;
 }) {
   return (
-    <ol className="flex gap-6 lg:sticky lg:top-8 lg:h-fit lg:flex-col lg:gap-0">
+    <ol className="flex flex-wrap gap-x-6 gap-y-2 lg:sticky lg:top-8 lg:h-fit lg:flex-col lg:flex-nowrap lg:gap-0">
       {STEPS.map((label, index) => {
         const active = index === step;
         const reachable = index <= step || canAdvance;
 
         return (
-          <li key={label} className="lg:border-b lg:border-rule">
+          <li key={label} className="shrink-0 lg:w-full lg:border-b lg:border-rule">
             <button
               type="button"
               onClick={() => reachable && onSelect(index)}
@@ -304,7 +305,7 @@ function IdentityStep({
       <div className="mt-12">
         <div className="flex flex-wrap items-baseline justify-between gap-4">
           <h3 className="label-eyebrow">Season category</h3>
-          <div className="flex gap-3 text-xs text-ink-faint">
+          <div className="flex flex-wrap gap-2 text-xs text-ink-faint">
             <span className="border border-rule px-2.5 py-1">
               Take the quiz — not yet built
             </span>
@@ -435,7 +436,7 @@ function FormatStep({
               <button
                 type="button"
                 onClick={() => onPreset(preset.id)}
-                className={`flex w-full items-center justify-between gap-6 px-6 py-6 text-left transition-colors ${
+                className={`flex w-full items-center justify-between gap-4 px-5 py-5 text-left transition-colors sm:gap-6 sm:px-6 sm:py-6 ${
                   selected ? "bg-ink text-paper" : "bg-paper-raised hover:bg-paper"
                 }`}
               >
@@ -463,7 +464,7 @@ function FormatStep({
           <button
             type="button"
             onClick={() => onPreset("custom")}
-            className={`flex w-full items-center justify-between gap-6 px-6 py-6 text-left transition-colors ${
+            className={`flex w-full items-center justify-between gap-4 px-5 py-5 text-left transition-colors sm:gap-6 sm:px-6 sm:py-6 ${
               customSelected ? "bg-ink text-paper" : "bg-paper-raised hover:bg-paper"
             }`}
           >

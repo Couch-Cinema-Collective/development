@@ -1,7 +1,7 @@
 import "server-only";
 
-import type { Film } from "./types";
-import { FILMS_BY_ID, searchFixtures } from "./mock/films";
+import type { CastMember, Film } from "./types";
+import { FILMS_BY_ID, FIXTURE_FILMS, searchFixtures } from "./mock/films";
 
 const BASE = "https://api.themoviedb.org/3";
 
@@ -49,7 +49,15 @@ interface TmdbMovie {
   vote_average: number;
   overview: string;
   imdb_id?: string | null;
-  credits?: { crew?: { job: string; name: string }[] };
+  credits?: {
+    crew?: { job: string; name: string }[];
+    cast?: {
+      id: number;
+      name: string;
+      character?: string;
+      profile_path?: string | null;
+    }[];
+  };
 }
 
 function normalize(movie: TmdbMovie): Film {
@@ -107,6 +115,33 @@ export async function findFilmByTitle(title: string): Promise<Film | null> {
   }
 }
 
+/**
+ * Top-billed cast for the acting categories. TMDB returns `cast` in billing
+ * order, so the first few are the leads without any ranking of our own.
+ */
+export async function getTopCast(id: number, limit = 5): Promise<CastMember[]> {
+  if (!isLive()) return [];
+
+  try {
+    const movie = await tmdb<TmdbMovie>(`/movie/${id}`, {
+      append_to_response: "credits",
+    });
+
+    return (movie.credits?.cast ?? []).slice(0, limit).map((c) => ({
+      id: c.id,
+      name: c.name,
+      character: c.character ?? "",
+      profilePath: c.profile_path ?? null,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export function profileUrl(path: string | null, size: "w185" = "w185"): string | null {
+  return path ? `https://image.tmdb.org/t/p/${size}${path}` : null;
+}
+
 export async function getFilm(id: number): Promise<Film | null> {
   if (!isLive()) return FILMS_BY_ID.get(id) ?? null;
 
@@ -115,6 +150,78 @@ export async function getFilm(id: number): Promise<Film | null> {
     append_to_response: "credits,watch/providers",
   });
   return normalize(movie);
+}
+
+interface TmdbGenreList {
+  genres: { id: number; name: string }[];
+}
+
+interface TmdbKeywordResponse {
+  results: { id: number; name: string }[];
+}
+
+/**
+ * A starting shelf for the draft's browse grid, matched to the season's
+ * category. Three passes, most precise first:
+ *   1. official TMDB genre ("Animation", "Spaghetti Westerns" → Western)
+ *   2. keyword discovery ("french new wave", "heist" — movements and themes)
+ *   3. plain title search, as a last resort
+ * Results rank by vote count, so the shelf reads as the category's canon.
+ */
+export async function catalogForCategory(category: string): Promise<Film[]> {
+  if (!isLive() || !category.trim()) return FIXTURE_FILMS;
+
+  try {
+    let ids: number[] = [];
+
+    const { genres } = await tmdb<TmdbGenreList>("/genre/movie/list");
+    const cat = category.toLowerCase();
+    const genre = genres.find((g) => {
+      const name = g.name.toLowerCase();
+      return cat.includes(name) || name.includes(cat);
+    });
+    if (genre) {
+      const { results } = await tmdb<TmdbSearchResponse>("/discover/movie", {
+        with_genres: String(genre.id),
+        sort_by: "vote_count.desc",
+        "vote_count.gte": "300",
+        include_adult: "false",
+      });
+      ids = results.slice(0, 12).map((r) => r.id);
+    }
+
+    if (!ids.length) {
+      const { results: keywords } = await tmdb<TmdbKeywordResponse>(
+        "/search/keyword",
+        { query: category },
+      );
+      const keywordIds = keywords.slice(0, 2).map((k) => k.id);
+      if (keywordIds.length) {
+        const { results } = await tmdb<TmdbSearchResponse>("/discover/movie", {
+          with_keywords: keywordIds.join("|"),
+          sort_by: "vote_count.desc",
+          include_adult: "false",
+        });
+        ids = results.slice(0, 12).map((r) => r.id);
+      }
+    }
+
+    if (!ids.length) {
+      const { results } = await tmdb<TmdbSearchResponse>("/search/movie", {
+        query: category,
+        include_adult: "false",
+      });
+      ids = results.slice(0, 12).map((r) => r.id);
+    }
+
+    const films = await Promise.all(
+      ids.map((id) => getFilm(id).catch(() => null)),
+    );
+    return films.filter((f): f is Film => f !== null);
+  } catch {
+    // An empty grid with working search beats the wrong category's canon.
+    return [];
+  }
 }
 
 export function posterUrl(path: string | null, size: "w342" | "w500" = "w342"): string | null {

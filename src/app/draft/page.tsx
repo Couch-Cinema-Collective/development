@@ -4,10 +4,9 @@ import { redirect } from "next/navigation";
 import { Countdown } from "@/components/Countdown";
 import { DraftBoard } from "@/components/DraftBoard";
 import { getUserMemberships } from "@/lib/guilds";
-import { FIXTURE_FILMS } from "@/lib/mock/films";
 import { toPoolRow, type PoolRpcRow } from "@/lib/nominations";
 import { createClient } from "@/lib/supabase/server";
-import { hydrateCatalog, isLive } from "@/lib/tmdb";
+import { catalogForCategory, isLive } from "@/lib/tmdb";
 import type { Film } from "@/lib/types";
 
 export default async function DraftPage({
@@ -77,7 +76,7 @@ export default async function DraftPage({
       .eq("season_id", season.id)
       .eq("user_id", user.id),
     supabase.rpc("nomination_pool", { sid: season.id }),
-    hydrateCatalog(FIXTURE_FILMS),
+    catalogForCategory(season.category),
   ]);
 
   const initialAllocations: Record<number, number> = {};

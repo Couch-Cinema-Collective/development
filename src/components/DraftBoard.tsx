@@ -221,15 +221,19 @@ export function DraftBoard({
             <p className="mt-2 text-xs text-ink-faint">
               {searching
                 ? "Searching…"
-                : live
+                : results
                   ? "Live results from TMDB."
-                  : `Showing the ${categoryName} fixture catalog — add a TMDB key for live search.`}
+                  : live
+                    ? `A starting shelf of ${categoryName} — search for anything beyond it.`
+                    : `Showing the fixture catalog — add a TMDB key for live search.`}
             </p>
           </div>
 
           {displayed.length === 0 && !searching ? (
             <p className="mt-16 text-sm text-ink-soft">
-              No films matched “{query}”.
+              {query.trim()
+                ? `No films matched “${query}”.`
+                : "Search above to pull films from TMDB."}
             </p>
           ) : (
             <ul className="mt-10 grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 xl:grid-cols-4">
@@ -250,6 +254,9 @@ export function DraftBoard({
           pool={rankedPool}
           filmCount={filmCount}
           spent={spent}
+          allocations={allocations}
+          canAdd={unspent > 0}
+          onAllocate={allocate}
           saveState={saveState}
           saveError={saveError}
         />
@@ -326,13 +333,22 @@ function FilmCard({
   onAllocate: (filmId: number, delta: number) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: film.id });
+  const [showPremise, setShowPremise] = useState(false);
 
   return (
     <li ref={setNodeRef} className="group">
       <div
         className={`relative transition-transform ${isOver ? "scale-[1.03]" : ""}`}
       >
-        <FilmPoster film={film} />
+        <button
+          type="button"
+          onClick={() => setShowPremise((v) => !v)}
+          aria-expanded={showPremise}
+          aria-label={`${showPremise ? "Hide" : "Show"} the premise of ${film.title}`}
+          className="block w-full cursor-pointer"
+        >
+          <FilmPoster film={film} />
+        </button>
 
         {allocated > 0 && (
           <span className="absolute -right-2 -top-2 flex items-center gap-1 bg-signal px-2.5 py-1.5">
@@ -353,6 +369,7 @@ function FilmCard({
             {film.runtime ? ` · ${film.runtime}m` : ""}
           </p>
         </div>
+        {/* Premise sits under the title block; the poster toggles it. */}
 
         <div className="flex shrink-0 items-center gap-1">
           <button
@@ -375,6 +392,14 @@ function FilmCard({
           </button>
         </div>
       </div>
+
+      {showPremise && (
+        <p className="mt-2 text-xs leading-relaxed text-ink-soft">
+          {film.overview?.trim()
+            ? film.overview
+            : "No premise on file for this one."}
+        </p>
+      )}
     </li>
   );
 }
@@ -383,12 +408,18 @@ function Pool({
   pool,
   filmCount,
   spent,
+  allocations,
+  canAdd,
+  onAllocate,
   saveState,
   saveError,
 }: {
   pool: Array<PoolRow & { mine: boolean; score: number }>;
   filmCount: number;
   spent: number;
+  allocations: Record<number, number>;
+  canAdd: boolean;
+  onAllocate: (filmId: number, delta: number) => void;
   saveState: SaveState;
   saveError: string | null;
 }) {
@@ -408,32 +439,72 @@ function Pool({
         <ol className="mt-6 space-y-0 border-t border-rule">
           {pool.map((entry, index) => {
             const onSlate = index < filmCount;
+            const yours = allocations[entry.tmdbId] ?? 0;
 
             return (
               <li
                 key={entry.tmdbId}
-                className={`flex items-baseline gap-3 border-b border-rule py-3 ${
-                  onSlate ? "" : "opacity-45"
-                }`}
+                className={`border-b border-rule py-3 ${onSlate ? "" : "opacity-45"}`}
               >
-                <span className="w-4 shrink-0 tabular-nums text-xs text-ink-faint">
-                  {index + 1}
-                </span>
-
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm tracking-tight">
-                    {entry.film?.title ?? "Unknown film"}
-                    {entry.mine && <span className="ml-1.5 text-signal">●</span>}
+                <div className="flex items-baseline gap-3">
+                  <span className="w-4 shrink-0 tabular-nums text-xs text-ink-faint">
+                    {index + 1}
                   </span>
-                  <span className="text-xs text-ink-faint">
-                    {entry.nominatorCount} nominator
-                    {entry.nominatorCount === 1 ? "" : "s"}
-                  </span>
-                </span>
 
-                <span className="shrink-0 tabular-nums text-sm font-medium">
-                  {entry.points}
-                </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm tracking-tight">
+                      {entry.film?.title ?? "Unknown film"}
+                    </span>
+                    <span className="text-xs text-ink-faint">
+                      {entry.nominatorCount} nominator
+                      {entry.nominatorCount === 1 ? "" : "s"}
+                    </span>
+                  </span>
+
+                  <span className="shrink-0 tabular-nums text-sm font-medium">
+                    {entry.points}
+                  </span>
+                </div>
+
+                {entry.film?.overview?.trim() && (
+                  <p className="mt-1.5 line-clamp-2 pl-7 text-xs leading-relaxed text-ink-faint">
+                    {entry.film.overview}
+                  </p>
+                )}
+
+                {/* Your own stake, adjustable without hunting for the card. */}
+                <div className="mt-2 flex items-center gap-2 pl-7">
+                  <span
+                    className={`flex-1 text-xs ${
+                      yours > 0 ? "text-signal" : "text-ink-faint"
+                    }`}
+                  >
+                    {yours > 0
+                      ? `Your stake · ${yours} of ${POINTS_PER_MEMBER}`
+                      : "Not yours"}
+                  </span>
+
+                  <span className="flex shrink-0 items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => onAllocate(entry.tmdbId, -1)}
+                      disabled={yours === 0}
+                      aria-label={`Remove a point from ${entry.film?.title ?? "this film"}`}
+                      className="size-6 border border-rule text-xs leading-none transition-colors hover:border-ink disabled:opacity-25 disabled:hover:border-rule"
+                    >
+                      −
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onAllocate(entry.tmdbId, 1)}
+                      disabled={!canAdd}
+                      aria-label={`Add a point to ${entry.film?.title ?? "this film"}`}
+                      className="size-6 border border-ink bg-ink text-xs leading-none text-paper transition-colors hover:border-signal hover:bg-signal disabled:opacity-25"
+                    >
+                      +
+                    </button>
+                  </span>
+                </div>
               </li>
             );
           })}

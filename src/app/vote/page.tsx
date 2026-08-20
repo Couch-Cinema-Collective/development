@@ -5,7 +5,7 @@ import { Ballot } from "@/components/Ballot";
 import { getUserMemberships } from "@/lib/guilds";
 import { ceremonyOrder } from "@/lib/mock/awards";
 import { createClient } from "@/lib/supabase/server";
-import type { AwardCategory, Film } from "@/lib/types";
+import type { AwardCategory, CastMember, Film } from "@/lib/types";
 
 export default async function VotePage({
   searchParams,
@@ -71,7 +71,7 @@ export default async function VotePage({
         .eq("user_id", user.id),
       supabase
         .from("votes")
-        .select("award_id, tmdb_id")
+        .select("award_id, tmdb_id, person")
         .eq("season_id", season.id)
         .eq("user_id", user.id),
     ]);
@@ -88,7 +88,11 @@ export default async function VotePage({
   );
   const slate = (slateRows ?? []).map((r) => r.film as Film);
   const initialBallot: Record<string, number> = {};
-  for (const v of voteRows ?? []) initialBallot[v.award_id] = v.tmdb_id;
+  const initialPerformers: Record<string, CastMember> = {};
+  for (const v of voteRows ?? []) {
+    initialBallot[v.award_id] = v.tmdb_id;
+    if (v.person) initialPerformers[v.award_id] = v.person as CastMember;
+  }
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-12">
@@ -112,6 +116,7 @@ export default async function VotePage({
           slate={slate}
           watchedIds={(watchedRows ?? []).map((w) => w.tmdb_id)}
           initialBallot={initialBallot}
+          initialPerformers={initialPerformers}
           honorGate={season.eligibility === "honor"}
         />
       </div>

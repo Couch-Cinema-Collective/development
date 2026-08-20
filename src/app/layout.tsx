@@ -1,9 +1,11 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Jost } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
 import "./globals.css";
 import { AuthStatus } from "@/components/AuthStatus";
+import { PushRegistrar } from "@/components/PushRegistrar";
+import { SiteNav } from "@/components/SiteNav";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 
@@ -14,10 +16,39 @@ const jost = Jost({
   display: "swap",
 });
 
+const SITE_URL = "https://www.couchcinemacollective.com";
+const DESCRIPTION =
+  "Guilds of film watchers nominate, watch, and award a season of cinema together.";
+
+/**
+ * viewport-fit=cover lets the page paint under the notch and home
+ * indicator; globals.css then pads with env(safe-area-inset-*). Without
+ * it iOS letterboxes the webview and the layout fights the inset.
+ */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export const metadata: Metadata = {
+  // Required for og:image to resolve to an absolute URL — relative ones are
+  // ignored by every scraper.
+  metadataBase: new URL(SITE_URL),
   title: "Couch Cinema Collective",
-  description:
-    "Guilds of film watchers nominate, watch, and award a season of cinema together.",
+  description: DESCRIPTION,
+  openGraph: {
+    title: "Couch Cinema Collective",
+    description: DESCRIPTION,
+    url: SITE_URL,
+    siteName: "Couch Cinema Collective",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Couch Cinema Collective",
+    description: DESCRIPTION,
+  },
 };
 
 /**
@@ -30,10 +61,9 @@ const PUBLIC_NAV = [
   { href: "/wiki", label: "Film Collection" },
 ];
 
-const MEMBER_NAV = [
-  { href: "/welcome", label: "My Guilds" },
-  { href: "/profile", label: "Profile" },
-];
+// "My Guilds" lives as the boxed button in AuthStatus, not here — having it
+// in both places read as a duplicate.
+const MEMBER_NAV = [{ href: "/profile", label: "Profile" }];
 
 export default async function RootLayout({
   children,
@@ -51,7 +81,9 @@ export default async function RootLayout({
   return (
     <html lang="en" className={jost.variable}>
       <body className="min-h-screen antialiased">
-        <header className="border-b border-rule bg-paper-raised">
+        {/* Safe-area padding lives on the header, not body: its background fills
+            the notch area while the logo sits clear of the system UI. */}
+        <header className="relative border-b border-rule bg-paper-raised pt-[env(safe-area-inset-top)]">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-8 px-6 py-4">
             <Link href="/" className="shrink-0">
               <Image
@@ -64,20 +96,11 @@ export default async function RootLayout({
               />
             </Link>
 
-            <nav className="flex items-center gap-7">
-              {nav.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="label-eyebrow transition-colors hover:text-ink"
-                >
-                  {item.label}
-                </Link>
-              ))}
-              <AuthStatus />
-            </nav>
+            <SiteNav items={nav} authSlot={<AuthStatus />} />
           </div>
         </header>
+
+        <PushRegistrar signedIn={signedIn} />
 
         {children}
 

@@ -3,12 +3,17 @@ import "server-only";
 import type { ExternalScores } from "./types";
 
 /**
- * External critic scores (PLAN.md §3.2).
+ * External critic scores.
  *
- * Deliberately behind a provider interface. OMDb is licensed CC BY-NC, so the
- * day Couch Cinema Collective charges anyone it has to come out — swapping the
- * export below for `nullProvider` is the whole removal, and `w_critic` falls
- * back to TMDB's own rating with no other code touched.
+ * OMDb was removed on 2026-08-19. It supplied IMDb, Rotten Tomatoes and
+ * Metacritic scores but is licensed CC BY-NC — non-commercial only — and this
+ * app now ships under a limited company. The licence was never going to
+ * survive contact with a real entity, so it is gone rather than quietly
+ * relied upon.
+ *
+ * The provider seam is kept deliberately: TMDB's own vote_average still feeds
+ * the slate algorithm, and a properly-licensed source can be dropped in here
+ * without touching a single call site.
  */
 export interface ExternalScoreProvider {
   readonly name: string;
@@ -16,63 +21,7 @@ export interface ExternalScoreProvider {
   fetch(imdbId: string): Promise<ExternalScores | null>;
 }
 
-interface OmdbResponse {
-  Response: "True" | "False";
-  Error?: string;
-  Ratings?: { Source: string; Value: string }[];
-  imdbRating?: string;
-  Metascore?: string;
-}
-
-/** "96%" → 96, "8.6/10" → 8.6, "96/100" → 96. */
-function parseScore(value: string): number | undefined {
-  const numeric = Number.parseFloat(value.replace("%", ""));
-  return Number.isFinite(numeric) ? numeric : undefined;
-}
-
-const omdbProvider: ExternalScoreProvider = {
-  name: "OMDb",
-  get available() {
-    return Boolean(process.env.OMDB_API_KEY);
-  },
-
-  async fetch(imdbId) {
-    const key = process.env.OMDB_API_KEY;
-    if (!key || !imdbId) return null;
-
-    const url = new URL("https://www.omdbapi.com/");
-    url.searchParams.set("i", imdbId);
-    url.searchParams.set("apikey", key);
-
-    try {
-      // Only called at slate lock and on the season page, so the 1,000/day
-      // free tier is never close to a constraint.
-      const res = await fetch(url, { next: { revalidate: 60 * 60 * 24 } });
-      if (!res.ok) return null;
-
-      const data = (await res.json()) as OmdbResponse;
-      if (data.Response !== "True") return null;
-
-      const scores: ExternalScores = {};
-
-      const rt = data.Ratings?.find((r) => r.Source === "Rotten Tomatoes");
-      if (rt) scores.rottenTomatoes = parseScore(rt.Value);
-
-      if (data.imdbRating && data.imdbRating !== "N/A") {
-        scores.imdb = parseScore(data.imdbRating);
-      }
-      if (data.Metascore && data.Metascore !== "N/A") {
-        scores.metacritic = parseScore(data.Metascore);
-      }
-
-      return Object.keys(scores).length > 0 ? scores : null;
-    } catch {
-      return null;
-    }
-  },
-};
-
-/** Drop-in replacement if OMDb ever has to be removed for licensing. */
+/** No external provider configured — TMDB ratings carry the critic term. */
 export const nullProvider: ExternalScoreProvider = {
   name: "none",
   available: false,
@@ -81,9 +30,12 @@ export const nullProvider: ExternalScoreProvider = {
   },
 };
 
-export const scoreProvider: ExternalScoreProvider = omdbProvider;
+export const scoreProvider: ExternalScoreProvider = nullProvider;
 
-/** Batch lookup. One failure never blanks the others. */
+/**
+ * Batch lookup, kept so call sites need no change if a provider returns.
+ * Currently always resolves empty.
+ */
 export async function scoresFor(
   imdbIds: (string | null | undefined)[],
 ): Promise<Record<string, ExternalScores>> {
