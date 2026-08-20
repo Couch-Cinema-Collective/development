@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Jost } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
@@ -19,6 +19,17 @@ const jost = Jost({
 const SITE_URL = "https://www.couchcinemacollective.com";
 const DESCRIPTION =
   "Guilds of film watchers nominate, watch, and award a season of cinema together.";
+
+/**
+ * viewport-fit=cover lets the page paint under the notch and home
+ * indicator; globals.css then pads with env(safe-area-inset-*). Without
+ * it iOS letterboxes the webview and the layout fights the inset.
+ */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   // Required for og:image to resolve to an absolute URL — relative ones are

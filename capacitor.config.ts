@@ -40,7 +40,11 @@ const config: CapacitorConfig = {
   ios: {
     // The site paints its own background; this stops a white flash on launch.
     backgroundColor: "#f7f5f0",
-    contentInset: "always",
+    // "automatic" — "always" double-insets against the page's own
+    // safe-area padding and clips content at the bottom.
+    contentInset: "automatic",
+    // Let the web content paint under the notch; CSS handles the insets.
+    limitsNavigationsToAppBoundDomains: false,
   },
 
   plugins: {
