@@ -88,3 +88,47 @@ The mitigation is the list above — push notifications especially, plus the
 share sheet and offline caching. Ship those and the app does things the mobile
 site cannot, which is exactly the test Apple applies. Submitting before push
 works is inviting a rejection and a wasted review cycle.
+
+## Testing push notifications
+
+Two halves, both testable without a phone.
+
+### 1. Are the credentials right?
+
+```bash
+node scripts/send-test-push.mjs
+```
+
+Sends to a deliberately fake device token. Apple distinguishes a bad token
+from a bad key, and that difference is the signal:
+
+| Response | Meaning |
+|---|---|
+| `BadDeviceToken` | ✅ Key, key id, team id and bundle are all correct |
+| `InvalidProviderToken` | ✗ `APNS_KEY`, `APNS_KEY_ID` or `APNS_TEAM_ID` is wrong |
+| `TopicDisallowed` | ✗ `APNS_BUNDLE_ID` doesn't match the key's app |
+
+Verified `BadDeviceToken` on 2026-08-19 — the server side is sound.
+
+### 2. Does the app handle a notification?
+
+```bash
+xcrun simctl push booted com.couchcinemacollective.app payload.apns
+```
+
+Where `payload.apns` is the real APNs body plus a `Simulator Target Bundle`
+key. Confirms the banner, the badge, and — if you tap it — that `path`
+deep-links to the right screen.
+
+### What still needs a real device
+
+Simulators don't produce usable APNs device tokens, so nothing above proves
+the round trip: registration writing to `device_tokens`, a season transition
+firing, and the notification arriving on someone's phone.
+
+That needs a TestFlight build, a signed-in member, and a season advanced to
+VOTING. Until then the chain is proven in two halves that have never been
+joined.
+
+Production also needs the `APNS_*` variables set on the host — they are in
+`.env.local` for development only.
