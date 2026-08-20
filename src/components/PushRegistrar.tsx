@@ -22,6 +22,9 @@ export function PushRegistrar({ signedIn }: { signedIn: boolean }) {
     void registerPush(
       (token) => registerDeviceToken(token),
       (path) => router.push(path),
+      // Nothing user-facing: a device that can't register still uses the app
+      // fine. But it belongs in the log rather than vanishing.
+      (message) => console.warn("[push] registration failed:", message),
     );
   }, [signedIn, router]);
 
