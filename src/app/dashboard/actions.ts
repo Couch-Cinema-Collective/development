@@ -10,6 +10,34 @@ export interface ActionResult {
   ok?: boolean;
 }
 
+/**
+ * Flag a review for the president, who sees the queue on the guild page and
+ * can remove the review or dismiss the flag. Works on anonymous reviews —
+ * a flag needs only the review id, never the author. RLS enforces guild
+ * membership and the one-flag-per-member rule.
+ */
+export async function reportReview(reviewId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Sign in first." };
+
+  const { error } = await supabase.from("review_reports").insert({
+    review_id: reviewId,
+    reporter_id: user.id,
+    reason: "Flagged from the review thread",
+  });
+
+  // Already flagged is the outcome the reporter wanted — treat as success.
+  if (error && error.code !== "23505") {
+    return { error: "Couldn't send that report." };
+  }
+
+  revalidatePath("/dashboard");
+  return { ok: true };
+}
+
 /** Mark a film watched, or take the mark back. */
 export async function setWatched(
   festivalId: string,

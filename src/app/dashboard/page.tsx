@@ -129,7 +129,25 @@ export default async function DashboardPage({
     upvoted_by_me: boolean;
     mine: boolean;
   };
-  const rows = (threadRows ?? []) as ReviewRow[];
+  // Flags the member has already filed, and members they've blocked. A block
+  // only bites once authorship is revealed — anonymous reviews have no
+  // author to match, which is the point of the anonymity.
+  const [{ data: myReportRows }, { data: blockRows }] = await Promise.all([
+    supabase
+      .from("review_reports")
+      .select("review_id")
+      .eq("reporter_id", user.id),
+    supabase
+      .from("member_blocks")
+      .select("blocked_id")
+      .eq("blocker_id", user.id),
+  ]);
+  const reportedByMe = new Set((myReportRows ?? []).map((r) => r.review_id));
+  const blocked = new Set((blockRows ?? []).map((b) => b.blocked_id));
+
+  const rows = ((threadRows ?? []) as ReviewRow[]).filter(
+    (r) => r.mine || !r.user_id || !blocked.has(r.user_id),
+  );
   const authorIds = [
     ...new Set(rows.map((r) => r.user_id).filter((id): id is string => !!id)),
   ];
@@ -152,6 +170,7 @@ export default async function DashboardPage({
     upvotedByMe: r.upvoted_by_me,
     // The server says so — before the reveal there is no id to compare.
     mine: r.mine,
+    reportedByMe: reportedByMe.has(r.id),
   }));
 
   const myStanding = (

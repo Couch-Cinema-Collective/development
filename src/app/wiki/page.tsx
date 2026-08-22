@@ -20,7 +20,7 @@ export default function WikiPage() {
     <main className="mx-auto max-w-6xl px-6 py-12">
       <header className="border-b border-rule pb-8">
         <p className="label-eyebrow">The Collection</p>
-        <h1 className="mt-3 text-6xl font-medium uppercase leading-none tracking-tight">
+        <h1 className="mt-3 text-5xl font-medium uppercase leading-none tracking-tight sm:text-6xl">
           Film Collection
         </h1>
         <p className="mt-5 max-w-xl text-sm leading-relaxed text-ink-soft">

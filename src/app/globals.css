@@ -26,6 +26,13 @@
   color-scheme: light;
 }
 
+html {
+  /* A single long word in display type (film titles, theme names) must
+     never let the page pan sideways. clip, not hidden — hidden would make
+     html a scroll container and break position: sticky descendants. */
+  overflow-x: clip;
+}
+
 body {
   /* Clear the notch and home indicator. Paired with viewportFit: "cover" —
      without these the content sits under the system UI. */

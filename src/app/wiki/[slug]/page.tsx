@@ -38,7 +38,7 @@ export default async function CategoryPage({
 
       <header className="mt-6 border-b border-rule pb-8">
         <p className="label-eyebrow text-signal">{category.family}</p>
-        <h1 className="mt-3 text-balance text-6xl font-medium uppercase leading-[0.95] tracking-tight">
+        <h1 className="mt-3 break-words text-balance text-4xl font-medium uppercase leading-[0.95] tracking-tight sm:text-6xl">
           {category.name}
         </h1>
         <p className="mt-6 max-w-2xl text-lg leading-relaxed text-ink-soft">

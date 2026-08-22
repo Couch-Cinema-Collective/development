@@ -18,7 +18,7 @@ export default function PrivacyPage() {
         <h1 className="mt-3 text-5xl font-medium uppercase leading-none tracking-tight">
           Privacy Policy
         </h1>
-        <p className="mt-4 text-sm text-ink-faint">Last updated 19 August 2026</p>
+        <p className="mt-4 text-sm text-ink-faint">Last updated 22 August 2026</p>
       </header>
 
       <div className="mt-10 space-y-10 text-sm leading-relaxed text-ink-soft">
@@ -53,8 +53,10 @@ export default function PrivacyPage() {
               your upvotes, and your ballots.
             </Item>
             <Item label="Technical">
-              Standard server logs kept by our hosting provider. We run no
-              analytics, no tracking pixels, and no advertising SDKs.
+              Standard server logs kept by our hosting provider, and anonymous
+              usage analytics via Google Analytics — which pages are visited
+              and roughly where visitors come from. Analytics is never joined
+              to your account, and we run no advertising SDKs.
             </Item>
           </ul>
         </Section>
@@ -66,6 +68,11 @@ export default function PrivacyPage() {
               row-level security, so members only ever read their own guilds.
             </Item>
             <Item label="Vercel">Hosts the site and keeps request logs.</Item>
+            <Item label="Google Analytics">
+              Measures site usage — pages visited, session length, and coarse
+              location — using a device identifier. We send it nothing about
+              your account, your guilds, or your activity in them.
+            </Item>
             <Item label="TMDB">
               Provides film metadata, artwork and ratings. We request film
               information from them; we never send them anything about you.

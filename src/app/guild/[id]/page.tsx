@@ -4,8 +4,10 @@ import { redirect } from "next/navigation";
 import { CopyButton } from "@/components/CopyButton";
 import { Countdown } from "@/components/Countdown";
 import { CuratorSeats } from "@/components/CuratorSeats";
+import { FlaggedReviews, type FlaggedReview } from "@/components/FlaggedReviews";
 import { LockedSubmission } from "@/components/LockedSubmission";
 import { PresidentPanel } from "@/components/PresidentPanel";
+import { RosterActions } from "@/components/RosterActions";
 import { getGuildFestivals, getGuildHome } from "@/lib/guilds";
 import { createClient } from "@/lib/supabase/server";
 import { isCurator, MAX_CRITICS, type Film } from "@/lib/types";
@@ -144,6 +146,56 @@ export default async function GuildPage({
     : memberAction(current?.state, guild.id, curator, awaitingOpen);
   const seatsLeft = guild.maxCurators - guild.curators.length;
 
+  // Who this member has personally blocked — drives the roster toggles.
+  const { data: blockRows } = await supabase
+    .from("member_blocks")
+    .select("blocked_id")
+    .eq("blocker_id", user.id);
+  const blockedIds = new Set((blockRows ?? []).map((b) => b.blocked_id));
+
+  // The president's moderation queue: member-flagged reviews, scoped to this
+  // guild's festivals (RLS shows a president all of their guild's flags, plus
+  // their own flags elsewhere — hence the festival filter).
+  let flagged: FlaggedReview[] = [];
+  if (president) {
+    const { data: reportRows } = await supabase
+      .from("review_reports")
+      .select("id, reporter_id, reviews!inner(id, body, user_id, festival_id)")
+      .order("created_at");
+    const festivalIds = new Set(festivals.map((f) => f.id));
+    const guildReports = (reportRows ?? [])
+      .map((r) => ({
+        id: r.id,
+        reporterId: r.reporter_id,
+        // PostgREST types to-one embeds loosely; at runtime this is one object.
+        review: r.reviews as unknown as {
+          id: string;
+          body: string;
+          user_id: string;
+          festival_id: string;
+        },
+      }))
+      .filter((r) => festivalIds.has(r.review.festival_id));
+
+    const nameIds = [
+      ...new Set(guildReports.flatMap((r) => [r.reporterId, r.review.user_id])),
+    ];
+    const { data: profiles } = nameIds.length
+      ? await supabase.from("profiles").select("id, full_name").in("id", nameIds)
+      : { data: [] };
+    const nameById = new Map(
+      (profiles ?? []).map((p) => [p.id, p.full_name || "Member"]),
+    );
+
+    flagged = guildReports.map((r) => ({
+      reportId: r.id,
+      reviewId: r.review.id,
+      body: r.review.body,
+      authorName: nameById.get(r.review.user_id) ?? "Member",
+      reporterName: nameById.get(r.reporterId) ?? "Member",
+    }));
+  }
+
   // Invite links always carry the canonical domain (design decision) — a
   // link copied during local dev must still work for the person receiving it.
   const inviteUrl = `https://www.couchcinemacollective.com/join/${guild.inviteCode}`;
@@ -154,7 +206,7 @@ export default async function GuildPage({
         <p className="label-eyebrow">
           {president ? "Your guild · President" : `Your guild · ${curator ? "Curator" : "Critic"}`}
         </p>
-        <h1 className="mt-3 text-5xl font-medium uppercase leading-none tracking-tight">
+        <h1 className="mt-3 break-words text-4xl font-medium uppercase leading-none tracking-tight sm:text-5xl">
           {guild.name}
         </h1>
         {current && (
@@ -204,6 +256,8 @@ export default async function GuildPage({
             filled={guild.curators.length}
           />
         )}
+
+        {president && <FlaggedReviews guildId={guild.id} reports={flagged} />}
 
         {/* ── A submitted film, or what to do next ───────────────────────── */}
         {lockedIn && myNomination?.film && (
@@ -278,7 +332,7 @@ export default async function GuildPage({
             {guild.curators.map((m) => (
               <li
                 key={m.userId}
-                className="flex items-baseline justify-between gap-6 bg-paper-raised px-6 py-4"
+                className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 bg-paper-raised px-6 py-4"
               >
                 <span className="font-medium">
                   {m.fullName}
@@ -286,8 +340,18 @@ export default async function GuildPage({
                     <span className="ml-2 text-xs text-ink-faint">(you)</span>
                   )}
                 </span>
-                <span className="label-eyebrow">
-                  {m.role === "president" ? "President" : "Curator"}
+                <span className="flex items-center gap-4">
+                  <span className="label-eyebrow">
+                    {m.role === "president" ? "President" : "Curator"}
+                  </span>
+                  <RosterActions
+                    guildId={guild.id}
+                    userId={m.userId}
+                    role={m.role}
+                    isSelf={m.userId === user.id}
+                    presidentView={president}
+                    initiallyBlocked={blockedIds.has(m.userId)}
+                  />
                 </span>
               </li>
             ))}
@@ -307,7 +371,7 @@ export default async function GuildPage({
               {guild.critics.map((m) => (
                 <li
                   key={m.userId}
-                  className="flex items-baseline justify-between gap-6 bg-paper-raised px-6 py-4"
+                  className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 bg-paper-raised px-6 py-4"
                 >
                   <span className="font-medium">
                     {m.fullName}
@@ -315,7 +379,17 @@ export default async function GuildPage({
                       <span className="ml-2 text-xs text-ink-faint">(you)</span>
                     )}
                   </span>
-                  <span className="label-eyebrow">Critic</span>
+                  <span className="flex items-center gap-4">
+                    <span className="label-eyebrow">Critic</span>
+                    <RosterActions
+                      guildId={guild.id}
+                      userId={m.userId}
+                      role={m.role}
+                      isSelf={m.userId === user.id}
+                      presidentView={president}
+                      initiallyBlocked={blockedIds.has(m.userId)}
+                    />
+                  </span>
                 </li>
               ))}
             </ul>
@@ -325,6 +399,11 @@ export default async function GuildPage({
               {guild.maxCritics || MAX_CRITICS} — share the invite link.
             </p>
           )}
+          <p className="mt-3 text-xs leading-relaxed text-ink-faint">
+            Blocking hides a member&apos;s revealed reviews from you — only you.
+            {president &&
+              " Removing takes a member out of the guild; their festival history stays."}
+          </p>
         </section>
 
         {finished.length > 0 && (

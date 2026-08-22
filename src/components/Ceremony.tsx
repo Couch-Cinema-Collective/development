@@ -51,7 +51,7 @@ export function Ceremony(props: CeremonyProps) {
       <div className="ceremony-reel">
         <section className="ceremony-card flex flex-col items-center justify-center text-center">
           <p className="label-eyebrow text-paper/50">{guildName}</p>
-          <h1 className="mt-6 text-balance text-7xl font-medium uppercase leading-[0.9] tracking-tight text-paper sm:text-8xl">
+          <h1 className="mt-6 break-words text-balance text-5xl font-medium uppercase leading-[0.9] tracking-tight text-paper sm:text-8xl">
             {theme}
           </h1>
           <p className="mt-8 text-sm uppercase tracking-[0.2em] text-paper/60">
@@ -83,7 +83,7 @@ export function Ceremony(props: CeremonyProps) {
                   <p className="mt-5 text-xs uppercase tracking-[0.18em] text-paper/45">
                     The award goes to
                   </p>
-                  <h2 className="mt-3 text-balance text-5xl font-medium uppercase leading-[0.95] tracking-tight text-paper sm:text-6xl">
+                  <h2 className="mt-3 break-words text-balance text-4xl font-medium uppercase leading-[0.95] tracking-tight text-paper sm:text-6xl">
                     {film.title}
                   </h2>
                   <p className="mt-5 text-sm text-paper/60">
@@ -117,7 +117,7 @@ export function Ceremony(props: CeremonyProps) {
             <p className="mt-5 text-xs uppercase tracking-[0.18em] text-paper/45">
               The sharpest writer of the festival
             </p>
-            <h2 className="mt-4 text-balance text-6xl font-medium uppercase leading-[0.95] tracking-tight text-paper sm:text-7xl">
+            <h2 className="mt-4 break-words text-balance text-4xl font-medium uppercase leading-[0.95] tracking-tight text-paper sm:text-7xl">
               {membersById[voiceOfThePeople.memberId]?.name ?? "Unknown"}
             </h2>
             <p className="mt-6 text-sm text-paper/60 tabular-nums">

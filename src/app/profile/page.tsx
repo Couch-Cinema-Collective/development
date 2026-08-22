@@ -139,7 +139,7 @@ export default async function ProfilePage() {
           <p className="text-xs uppercase tracking-[0.18em] text-paper/50">
             {memberSince ? `Member since ${memberSince}` : "Member"}
           </p>
-          <h1 className="mt-3 text-5xl font-medium uppercase leading-none tracking-tight text-paper">
+          <h1 className="mt-3 break-words text-4xl font-medium uppercase leading-none tracking-tight text-paper sm:text-5xl">
             {name}
           </h1>
 

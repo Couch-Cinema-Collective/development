@@ -5,7 +5,12 @@ import Link from "next/link";
 
 import { Countdown } from "./Countdown";
 import { FilmPoster } from "./FilmPoster";
-import { saveReview, setWatched, toggleUpvote } from "@/app/dashboard/actions";
+import {
+  reportReview,
+  saveReview,
+  setWatched,
+  toggleUpvote,
+} from "@/app/dashboard/actions";
 import {
   PHASE_LABELS,
   allClosed,
@@ -31,6 +36,8 @@ export interface ThreadReview {
   upvotes: number;
   upvotedByMe: boolean;
   mine: boolean;
+  /** Whether the signed-in member already flagged this review. */
+  reportedByMe: boolean;
 }
 
 export interface DashboardProps {
@@ -171,6 +178,25 @@ export function Dashboard({
     });
   }
 
+  /** Flag a review for the president. Optimistic, like upvotes. */
+  function onReport(reviewId: string) {
+    setError(null);
+    setReviews((prev) =>
+      prev.map((r) => (r.id === reviewId ? { ...r, reportedByMe: true } : r)),
+    );
+    startTransition(async () => {
+      const result = await reportReview(reviewId);
+      if (result.error) {
+        setError(result.error);
+        setReviews((prev) =>
+          prev.map((r) =>
+            r.id === reviewId ? { ...r, reportedByMe: false } : r,
+          ),
+        );
+      }
+    });
+  }
+
   return (
     <div className="grid gap-10 lg:grid-cols-[1fr_300px]">
       <div className="min-w-0 space-y-10">
@@ -193,7 +219,7 @@ export function Dashboard({
               </div>
 
               <div className="min-w-0">
-                <h2 className="text-4xl font-medium uppercase leading-none tracking-tight">
+                <h2 className="break-words text-3xl font-medium uppercase leading-none tracking-tight sm:text-4xl">
                   {current.film.title}
                 </h2>
                 <p className="mt-2 text-sm text-ink-faint">
@@ -310,21 +336,27 @@ export function Dashboard({
                           )}
                         </p>
                         {!r.mine && (
-                          <button
-                            type="button"
-                            onClick={() => onUpvote(r.id, !r.upvotedByMe)}
-                            disabled={
-                              pending || (!r.upvotedByMe && remaining <= 0)
-                            }
-                            aria-pressed={r.upvotedByMe}
-                            className={`shrink-0 border px-4 py-2 text-xs font-medium uppercase tracking-[0.12em] transition-colors disabled:opacity-30 ${
-                              r.upvotedByMe
-                                ? "border-signal bg-signal text-paper"
-                                : "border-rule hover:border-ink"
-                            }`}
-                          >
-                            {r.upvotedByMe ? "Upvoted" : "Upvote"}
-                          </button>
+                          <span className="flex shrink-0 items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => onUpvote(r.id, !r.upvotedByMe)}
+                              disabled={
+                                pending || (!r.upvotedByMe && remaining <= 0)
+                              }
+                              aria-pressed={r.upvotedByMe}
+                              className={`border px-4 py-2 text-xs font-medium uppercase tracking-[0.12em] transition-colors disabled:opacity-30 ${
+                                r.upvotedByMe
+                                  ? "border-signal bg-signal text-paper"
+                                  : "border-rule hover:border-ink"
+                              }`}
+                            >
+                              {r.upvotedByMe ? "Upvoted" : "Upvote"}
+                            </button>
+                            <ReportButton
+                              reported={r.reportedByMe}
+                              onReport={() => onReport(r.id)}
+                            />
+                          </span>
                         )}
                       </li>
                     ))}
@@ -534,3 +566,48 @@ const DEADLINE_LABEL: Record<ScreeningPhase, string> = {
   CRITICS_VOTING: "Vote within",
   CLOSED: "Closed",
 };
+
+/**
+ * Two clicks to flag — the first arms it, the second sends. No dialog, so it
+ * works the same in the browser and the iOS webview.
+ */
+function ReportButton({
+  reported,
+  onReport,
+}: {
+  reported: boolean;
+  onReport: () => void;
+}) {
+  const [armed, setArmed] = useState(false);
+
+  if (reported) {
+    return (
+      <span className="text-xs uppercase tracking-[0.1em] text-ink-faint">
+        Reported
+      </span>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (!armed) {
+          setArmed(true);
+          return;
+        }
+        setArmed(false);
+        onReport();
+      }}
+      onBlur={() => setArmed(false)}
+      aria-label="Report this review to the president"
+      className={`border px-3 py-2 text-xs uppercase tracking-[0.1em] transition-colors ${
+        armed
+          ? "border-signal text-signal"
+          : "border-rule text-ink-faint hover:border-ink hover:text-ink"
+      }`}
+    >
+      {armed ? "Confirm" : "Report"}
+    </button>
+  );
+}

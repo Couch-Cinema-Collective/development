@@ -1,3 +1,4 @@
+import { GoogleAnalytics } from "@next/third-parties/google";
 import type { Metadata, Viewport } from "next";
 import { Jost } from "next/font/google";
 import Image from "next/image";
@@ -143,6 +144,7 @@ export default async function RootLayout({
           </div>
         </footer>
       </body>
+      <GoogleAnalytics gaId="G-V5C8NNKFGR" />
     </html>
   );
 }
