@@ -57,6 +57,12 @@ const config: CapacitorConfig = {
       // Season deadlines are the reason this app exists on a phone at all.
       presentationOptions: ["badge", "sound", "alert"],
     },
+    // Native Sign in with Apple / Google (src/lib/native-auth.ts). Facebook
+    // and Twitter are off so their SDKs never ship in the binary.
+    SocialLogin: {
+      providers: { apple: true, google: true, facebook: false, twitter: false },
+      logLevel: 1,
+    },
   },
 };
 
