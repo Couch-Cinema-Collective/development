@@ -2,6 +2,11 @@
 
 import { useState } from "react";
 
+import {
+  NativeAuthCancelled,
+  nativeAuthAvailable,
+  signInNatively,
+} from "@/lib/native-auth";
 import { createClient } from "@/lib/supabase/client";
 
 /**
@@ -33,6 +38,33 @@ export function OAuthButtons({ next = "/welcome" }: { next?: string }) {
   async function signInWith(provider: "google" | "facebook" | "apple") {
     try {
       const supabase = createClient();
+
+      // On device the OS sheet runs instead of the browser redirect (see
+      // native-auth.ts). The session lands in cookies via the browser client,
+      // so a full navigation is what lets the server see it.
+      if (provider !== "facebook" && nativeAuthAvailable(provider)) {
+        const credential = await signInNatively(provider);
+        const { data, error } = await supabase.auth.signInWithIdToken({
+          provider,
+          token: credential.token,
+          nonce: credential.nonce,
+        });
+        if (error) {
+          setError(error.message);
+          return;
+        }
+        // Apple hands over the name exactly once, on first sign-in; keep it.
+        if (credential.fullName && data.user) {
+          await supabase
+            .from("profiles")
+            .update({ full_name: credential.fullName })
+            .eq("id", data.user.id)
+            .eq("full_name", "");
+        }
+        window.location.assign(next);
+        return;
+      }
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
@@ -41,7 +73,9 @@ export function OAuthButtons({ next = "/welcome" }: { next?: string }) {
       });
       if (error) setError(error.message);
     } catch (e) {
-      // Most likely: Supabase env vars not filled in yet.
+      // Dismissing the native sheet is not an error worth showing.
+      if (e instanceof NativeAuthCancelled) return;
+      // Otherwise most likely: Supabase env vars not filled in yet.
       setError(e instanceof Error ? e.message : "Sign-in failed.");
     }
   }

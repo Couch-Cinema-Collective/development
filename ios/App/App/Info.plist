@@ -66,5 +66,17 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<!-- Google Sign-In returns to the app through this URL scheme: the iOS
+	     OAuth client id, reversed. Replace the placeholder with the real one
+	     (Google Cloud → Credentials → the iOS client → "iOS URL scheme"). -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.REPLACE-WITH-IOS-CLIENT-ID</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

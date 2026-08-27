@@ -74,9 +74,26 @@ and re-run `npx cap sync ios`.
    product runs on deadlines (nominations lock, voting opens, ceremony
    publishes), and right now those only reach Discord.
 2. **A device-token table** so the server knows where to send.
-3. **Deep links** for Supabase OAuth. Google sign-in on web is a cookie
-   redirect; in a native webview it needs a registered URL scheme, or sign-in
-   dead-ends. Expect this to be the first thing that breaks on a real device.
+3. ~~**Deep links** for Supabase OAuth.~~ Done differently: OAuth never
+   leaves the app. On device, Sign in with Apple and Google run as native
+   sheets (`@capgo/capacitor-social-login`, `src/lib/native-auth.ts`) and
+   the identity token goes to Supabase via `signInWithIdToken()`. App
+   Review rejected the browser bounce under guideline 4 (2026-08-27).
+   One-time setup, all outside the repo:
+   - **Xcode** → target App → Signing & Capabilities → `+ Sign in with
+     Apple` (the entitlement is committed; this enables it on the App ID).
+   - **Supabase** → Auth → Providers → Apple → Client IDs: add
+     `com.couchcinemacollective.app` alongside the Services ID.
+   - **Google Cloud** → Credentials → Create OAuth client → iOS, bundle
+     `com.couchcinemacollective.app`. Put its client id in
+     `NEXT_PUBLIC_GOOGLE_IOS_CLIENT_ID` (`.env.local` and Vercel) and its
+     reversed form in `ios/App/App/Info.plist` (`CFBundleURLTypes`).
+   - **Supabase** → Auth → Providers → Google → Authorized Client IDs:
+     add the iOS client id (or set `NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID` so
+     the iOS SDK mints tokens for the web client id instead).
+   The Google button is hidden on device until the env var is set; Apple
+   works with just the Xcode + Supabase steps.
+
 4. **Offline caching** of the current slate.
 
 ## App Store: read this before submitting
