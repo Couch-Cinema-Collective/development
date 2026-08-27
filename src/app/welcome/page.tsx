@@ -24,10 +24,9 @@ const ROLE_LABEL: Record<string, string> = {
 /**
  * Post-sign-in hub, and the onboarding fork.
  *
- * The founding notes open on one question — critic or curator? — so that is
- * what this page asks, in those words, before anything else. Above it: the
- * member's own record, and whatever is currently open across their guilds —
- * a welcome page should lead with the person, not the org chart.
+ * The founding notes open on one question — critic or curator? — so guilds
+ * lead, in those words, before anything else. Below that: what's currently
+ * open across those guilds, then the member's own record.
  */
 export default async function WelcomePage() {
   const supabase = await createClient();
@@ -77,44 +76,7 @@ export default async function WelcomePage() {
           </h1>
         </header>
 
-        {/* Profile stats, popped forward as its own card. */}
-        <div className="mt-8 border border-ink bg-paper-raised p-6 sm:p-8">
-          <div className="flex flex-wrap items-baseline justify-between gap-4">
-            <p className="text-xl font-medium uppercase tracking-tight">
-              {fullName}
-            </p>
-            <Link
-              href="/profile"
-              className="label-eyebrow underline decoration-rule underline-offset-4 hover:text-signal"
-            >
-              Full profile →
-            </Link>
-          </div>
-          <dl className="mt-6 grid grid-cols-2 gap-6 sm:flex sm:flex-wrap sm:gap-12">
-            {stats.map((s) => (
-              <div key={s.label}>
-                <dt className="label-eyebrow">{s.label}</dt>
-                <dd className="mt-1 text-3xl font-medium tabular-nums">
-                  {s.value}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-
-        {/* What's open right now, across every guild — click straight in. */}
-        {liveScreenings.length > 0 && (
-          <section className="mt-10">
-            <h2 className="text-xs uppercase tracking-[0.18em] text-paper/70">
-              Now playing across your guilds
-            </h2>
-            <div className="mt-4">
-              <LiveScreeningsCarousel items={liveScreenings} />
-            </div>
-          </section>
-        )}
-
-        <h2 className="mt-12 border-b border-paper/25 pb-2 text-xs uppercase tracking-[0.18em] text-paper/70">
+        <h2 className="mt-10 border-b border-paper/25 pb-2 text-xs uppercase tracking-[0.18em] text-paper/70">
           Guilds
         </h2>
 
@@ -205,6 +167,43 @@ export default async function WelcomePage() {
             watch, review, and vote on every film, your own included.
           </p>
         )}
+
+        {/* What's open right now, across every guild — click straight in. */}
+        {liveScreenings.length > 0 && (
+          <section className="mt-12">
+            <h2 className="text-xs uppercase tracking-[0.18em] text-paper/70">
+              Now playing across your guilds
+            </h2>
+            <div className="mt-4">
+              <LiveScreeningsCarousel items={liveScreenings} />
+            </div>
+          </section>
+        )}
+
+        {/* Profile stats card. */}
+        <div className="mt-10 border border-ink bg-paper-raised p-6 sm:p-8">
+          <div className="flex flex-wrap items-baseline justify-between gap-4">
+            <p className="text-xl font-medium uppercase tracking-tight">
+              {fullName}
+            </p>
+            <Link
+              href="/profile"
+              className="label-eyebrow underline decoration-rule underline-offset-4 hover:text-signal"
+            >
+              Full profile →
+            </Link>
+          </div>
+          <dl className="mt-6 grid grid-cols-2 gap-6 sm:flex sm:flex-wrap sm:gap-12">
+            {stats.map((s) => (
+              <div key={s.label}>
+                <dt className="label-eyebrow">{s.label}</dt>
+                <dd className="mt-1 text-3xl font-medium tabular-nums">
+                  {s.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
       </div>
     </main>
   );
