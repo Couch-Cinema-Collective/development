@@ -130,37 +130,6 @@ export default async function WelcomePage() {
           </>
         )}
 
-        <div className="mt-12 border border-ink bg-paper-raised p-6 sm:p-8">
-          <div className="grid gap-12 sm:grid-cols-2">
-            <section>
-              <h2 className="label-eyebrow border-b border-rule pb-2">
-                Establish a guild
-              </h2>
-              <p className="mt-4 text-sm leading-relaxed text-ink-soft">
-                You become its president: you decide how many of the{" "}
-                {MIN_CURATORS}–{MAX_CURATORS} curator seats exist, set the
-                festival theme, and run the ceremony.
-              </p>
-              <div className="mt-6">
-                <CreateGuildForm />
-              </div>
-            </section>
-
-            <section>
-              <h2 className="label-eyebrow border-b border-rule pb-2">
-                Join a guild
-              </h2>
-              <p className="mt-4 text-sm leading-relaxed text-ink-soft">
-                Have an invite code or link? Walk in as a critic, or take one
-                of the curator seats if any are still free.
-              </p>
-              <div className="mt-6">
-                <JoinGuildForm />
-              </div>
-            </section>
-          </div>
-        </div>
-
         {active.some((m) => isCurator(m.role)) && (
           <p className="mt-12 text-sm text-paper/70">
             Curating is on top of critiquing, never instead of it — you still
@@ -203,6 +172,36 @@ export default async function WelcomePage() {
               </div>
             ))}
           </dl>
+        </div>
+
+        {/* Separate from the guild list above — a new guild, not one of these. */}
+        <div className="mt-16 border-t border-paper/25 pt-10">
+          <div className="grid gap-12 sm:grid-cols-2">
+            <section>
+              <h2 className="label-eyebrow text-paper/70">
+                Establish a guild
+              </h2>
+              <p className="mt-4 text-sm leading-relaxed text-paper/80">
+                You become its president: you decide how many of the{" "}
+                {MIN_CURATORS}–{MAX_CURATORS} curator seats exist, set the
+                festival theme, and run the ceremony.
+              </p>
+              <div className="mt-6 border border-ink bg-paper-raised p-6">
+                <CreateGuildForm />
+              </div>
+            </section>
+
+            <section>
+              <h2 className="label-eyebrow text-paper/70">Join a guild</h2>
+              <p className="mt-4 text-sm leading-relaxed text-paper/80">
+                Have an invite code or link? Walk in as a critic, or take one
+                of the curator seats if any are still free.
+              </p>
+              <div className="mt-6 border border-ink bg-paper-raised p-6">
+                <JoinGuildForm />
+              </div>
+            </section>
+          </div>
         </div>
       </div>
     </main>
