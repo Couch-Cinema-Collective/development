@@ -140,19 +140,10 @@ export default async function WelcomePage() {
         {/* What's open right now, across every guild — click straight in. */}
         {liveScreenings.length > 0 && (
           <section className="mt-12">
-            <div className="border-[6px] border-ink bg-ink p-1.5 sm:p-2">
-              <div className="marquee-lights" />
-              <div className="pattern-ampelmann px-6 py-8 text-center sm:px-10 sm:py-12">
-                <h2 className="text-balance text-6xl font-black uppercase leading-[0.85] tracking-tight text-ink sm:text-8xl">
-                  Now Playing
-                </h2>
-                <p className="mt-3 text-sm font-bold uppercase tracking-[0.35em] text-ink sm:mt-4 sm:text-base">
-                  In Your Festivals
-                </p>
-              </div>
-              <div className="marquee-lights" />
-            </div>
-            <div className="mt-6">
+            <h2 className="text-xs uppercase tracking-[0.18em] text-paper/70">
+              Now playing across your guilds
+            </h2>
+            <div className="mt-4">
               <LiveScreeningsCarousel items={liveScreenings} />
             </div>
           </section>
