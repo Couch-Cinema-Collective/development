@@ -33,6 +33,19 @@ html {
   overflow-x: clip;
 }
 
+/*
+ * iOS zooms the page when a focused control's text is under 16px — and in
+ * the app shell there's no pinch gesture to undo it. 16px on phones stops
+ * the zoom at the source. Unlayered, so it beats Tailwind's text-sm.
+ */
+@media (max-width: 639px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
 body {
   /* Clear the notch and home indicator. Paired with viewportFit: "cover" —
      without these the content sits under the system UI. */
