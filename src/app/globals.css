@@ -93,6 +93,15 @@ body {
   background-repeat: no-repeat;
 }
 
+/* Gold Ampelmann motif — the "Now Playing" banner on the welcome page. */
+@utility pattern-ampelmann {
+  background-color: #d9a441;
+  background-image: url("/brand/Cinema_Style_ampelmann pattern.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
 /*
  * Ceremony reel — one award per screen, snapped. The reel is its own scroll
  * container so each card fills the viewport below the site header.
