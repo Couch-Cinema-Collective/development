@@ -141,7 +141,7 @@ export default async function WelcomePage() {
         {liveScreenings.length > 0 && (
           <section className="mt-12">
             <div className="pattern-ampelmann px-6 py-8 text-center sm:px-10 sm:py-12">
-              <h2 className="text-balance text-6xl font-black uppercase leading-[0.85] tracking-tight text-ink sm:text-8xl">
+              <h2 className="text-balance text-3xl font-black uppercase leading-[0.85] tracking-tight text-ink sm:text-5xl">
                 Now Playing
               </h2>
               <p className="mt-3 text-sm font-bold uppercase tracking-[0.35em] text-ink sm:mt-4 sm:text-base">
