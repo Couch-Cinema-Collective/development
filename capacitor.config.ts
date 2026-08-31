@@ -24,6 +24,10 @@ const config: CapacitorConfig = {
   webDir: "native/www",
 
   server: {
+    // When the remote origin fails to load (DNS outage, server down), show
+    // the bundled offline screen instead of a blank webview. App Review saw
+    // the blank version during the 2026-08-29 domain suspension (2.1a).
+    errorPath: "index.html",
     url: "https://www.couchcinemacollective.com",
     hostname: "www.couchcinemacollective.com",
     androidScheme: "https",
