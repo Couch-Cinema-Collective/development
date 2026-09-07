@@ -63,8 +63,18 @@ and re-run `npx cap sync ios`.
 - **Share sheet.** Ceremony cards hand a real PNG to iOS via
   `src/lib/native.ts`; the same call downloads the file in a browser, so
   components don't branch on platform.
-- Plugins installed: App, Filesystem, Push Notifications, Share, Splash
-  Screen, Status Bar
+- **Native sign-in.** Apple and Google run as OS sheets on device
+  (`src/lib/native-auth.ts`); tokens go to Supabase via signInWithIdToken.
+- **Home/Lock Screen widget** ("Now Screening") and a **Live Activity**
+  festival clock (Lock Screen + Dynamic Island). The `Widgets` extension
+  target renders them; the dashboard feeds them through the `WidgetBridge`
+  plugin (`ios/App/App/WidgetBridge.swift` ↔ `syncFestivalClock()` in
+  `src/lib/native.ts`) over the `group.com.couchcinemacollective.app` App
+  Group. Added for App Review guideline 4.2 (2026-09-03 rejection said
+  push/share alone aren't native enough).
+- **Haptics** on dashboard interactions (watch, review, upvote, report).
+- Plugins installed: App, Filesystem, Haptics, Push Notifications, Share,
+  Social Login, Splash Screen, Status Bar
 
 ## What's left
 

@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 
 import { Countdown } from "./Countdown";
 import { FilmPoster } from "./FilmPoster";
+import { syncFestivalClock, tapHaptic } from "@/lib/native";
 import {
   reportReview,
   saveReview,
@@ -106,8 +107,28 @@ export function Dashboard({
     [lineup],
   );
 
+  // Mirror the festival clock onto the iOS widget and Live Activity. On the
+  // web this is a no-op; on device it keeps the Lock Screen honest.
+  const deadlineMs = deadline ? new Date(deadline).getTime() : null;
+  const filmCount = lineup.length;
+  useEffect(() => {
+    void syncFestivalClock(
+      current && phase && phase !== "CLOSED"
+        ? {
+            guildName,
+            filmTitle: current.film.title,
+            phaseLabel: PHASE_LABELS[phase],
+            deadline: deadlineMs,
+            position: current.position,
+            filmCount,
+          }
+        : null,
+    );
+  }, [current, phase, deadlineMs, guildName, filmCount]);
+
   function onWatch(next: boolean) {
     if (!current) return;
+    void tapHaptic();
     const id = current.film.id;
     setWatchedState((prev) => {
       const copy = new Set(prev);
@@ -137,6 +158,7 @@ export function Dashboard({
       const result = await saveReview(festivalId, current.film.id, reviewText);
       if (result.error) setError(result.error);
       else {
+        void tapHaptic();
         setSaved(true);
         setTimeout(() => setSaved(false), 2500);
       }
@@ -159,6 +181,7 @@ export function Dashboard({
       ),
     );
     setSpent((n) => n + (up ? 1 : -1));
+    void tapHaptic();
 
     startTransition(async () => {
       const result = await toggleUpvote(festivalId, current.film.id, reviewId, up);
@@ -181,6 +204,7 @@ export function Dashboard({
   /** Flag a review for the president. Optimistic, like upvotes. */
   function onReport(reviewId: string) {
     setError(null);
+    void tapHaptic();
     setReviews((prev) =>
       prev.map((r) => (r.id === reviewId ? { ...r, reportedByMe: true } : r)),
     );

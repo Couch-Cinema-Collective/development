@@ -106,3 +106,87 @@ export async function registerPush(
 
   await PushNotifications.register();
 }
+
+/* ── Widget + Live Activity bridge (iOS) ────────────────────────────────── */
+
+import { registerPlugin } from "@capacitor/core";
+
+interface WidgetBridgePlugin {
+  setState(options: { state: string }): Promise<void>;
+  clearState(): Promise<void>;
+  startActivity(options: {
+    guildName: string;
+    filmTitle: string;
+    phaseLabel: string;
+    deadline: number;
+  }): Promise<{ started: boolean }>;
+  endActivities(): Promise<void>;
+}
+
+const WidgetBridge = registerPlugin<WidgetBridgePlugin>("WidgetBridge");
+
+export interface FestivalClockState {
+  guildName: string;
+  filmTitle: string;
+  phaseLabel: string;
+  /** Epoch ms of the phase deadline; null when the phase has no clock. */
+  deadline: number | null;
+  position?: number;
+  filmCount?: number;
+}
+
+/** Swift's ISO-8601 decoder rejects fractional seconds — strip them. */
+function isoNoMillis(ms: number): string {
+  return new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+
+/**
+ * Keep the iOS surfaces in step with the dashboard: the Home/Lock Screen
+ * widget always mirrors the current film, and a Live Activity runs the
+ * phase countdown on the Lock Screen / Dynamic Island. No-op on the web.
+ */
+export async function syncFestivalClock(
+  state: FestivalClockState | null,
+): Promise<void> {
+  if (!isNative()) return;
+  try {
+    if (!state) {
+      await WidgetBridge.clearState();
+      await WidgetBridge.endActivities();
+      return;
+    }
+    await WidgetBridge.setState({
+      state: JSON.stringify({
+        guildName: state.guildName,
+        filmTitle: state.filmTitle,
+        phaseLabel: state.phaseLabel,
+        deadline: state.deadline ? isoNoMillis(state.deadline) : undefined,
+        position: state.position,
+        filmCount: state.filmCount,
+      }),
+    });
+    if (state.deadline && state.deadline > Date.now()) {
+      await WidgetBridge.startActivity({
+        guildName: state.guildName,
+        filmTitle: state.filmTitle,
+        phaseLabel: state.phaseLabel,
+        deadline: state.deadline,
+      });
+    } else {
+      await WidgetBridge.endActivities();
+    }
+  } catch {
+    // Widgets are a courtesy; the dashboard works without them.
+  }
+}
+
+/** A light tap on meaningful interactions. No-op on the web. */
+export async function tapHaptic(): Promise<void> {
+  if (!isNative()) return;
+  try {
+    const { Haptics, ImpactStyle } = await import("@capacitor/haptics");
+    await Haptics.impact({ style: ImpactStyle.Light });
+  } catch {
+    // Haptics are decoration.
+  }
+}
