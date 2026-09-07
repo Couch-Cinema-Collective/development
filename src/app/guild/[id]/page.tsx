@@ -17,6 +17,7 @@ const STATE_LABELS: Record<string, string> = {
   DRAFT: "Setting up",
   RECRUITING: "Recruiting",
   NOMINATING: "Nominations open",
+  RANKING: "Ranking the slate",
   LINEUP_SET: "Lineup set",
   SCREENING: "Screening",
   AWARDS_VOTING: "Awards voting",
@@ -37,17 +38,17 @@ function memberAction(
 ): { href: string; label: string; note: string } | null {
   switch (state) {
     case "NOMINATING":
-      return curator
-        ? {
-            href: `/nominate?guild=${guildId}`,
-            label: "Pick your film",
-            note: "Nominations are open — one film, your pick.",
-          }
-        : {
-            href: `/guild/${guildId}`,
-            label: "",
-            note: "Curators are choosing. Your part starts when the first film opens.",
-          };
+      return {
+        href: `/nominate?guild=${guildId}`,
+        label: "Pick your film",
+        note: "Nominations are open — one film each, first come claims it.",
+      };
+    case "RANKING":
+      return {
+        href: `/rank?guild=${guildId}`,
+        label: "Rank the nominations",
+        note: "More films than slots — your ranking decides what screens.",
+      };
     case "LINEUP_SET":
     case "SCREENING":
       return {
@@ -107,7 +108,7 @@ export default async function GuildPage({
   // a call to action they have no way to act on.
   const nominating = current?.state === "NOMINATING";
   const [{ data: myNomination }, { data: countRow }] =
-    nominating && curator
+    nominating
       ? await Promise.all([
           supabase
             .from("nominations")

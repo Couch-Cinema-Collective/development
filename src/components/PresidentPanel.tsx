@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 
 import {
   archiveFestival,
+  closeNominations,
   openAwardsVoting,
   openNominations,
   publishFestival,
@@ -46,11 +47,19 @@ const STEPS: Record<string, Step> = {
     run: (id) => openNominations(id),
   },
   NOMINATING: {
-    status: "Curators are choosing their films",
+    status: "The guild is nominating films",
+    label: "Close nominations",
+    confirm:
+      "Close nominations now? Only LOCKED submissions count. If more films are locked than the festival can screen, everyone gets 24 hours to rank them; otherwise the lineup is drawn immediately. This cannot be undone.",
+    note: "More films than slots → a 24-hour ranking vote. Otherwise the lineup is drawn at once.",
+    run: closeNominations,
+  },
+  RANKING: {
+    status: "The guild is ranking the nominations",
     label: "Draw the lineup",
     confirm:
-      "Draw the lineup now? Nominations close and screening order is drawn at random. Only films curators have LOCKED IN are included — anyone who picked without locking is left out. This cannot be undone.",
-    note: "Locked submissions only. Nothing starts until you open it.",
+      "Draw the lineup? Rank-choice voting closes as it stands and the surviving films are scheduled in random order. This cannot be undone.",
+    note: "Instant-runoff on the ballots as they stand. Nothing starts until you open it.",
     run: setLineup,
   },
   LINEUP_SET: {

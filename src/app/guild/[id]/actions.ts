@@ -81,6 +81,42 @@ export async function openNominations(
 }
 
 /**
+ * NOMINATING → RANKING (or straight to a draw when there is nothing to
+ * narrow). More locked films than screening slots means the guild ranks
+ * them and instant-runoff decides; fewer means every locked film screens
+ * and ranking would be theatre.
+ */
+export async function closeNominations(
+  festivalId: string,
+): Promise<FestivalActionResult & { ranking?: boolean }> {
+  const { supabase, festival, error } = await requirePresident(festivalId);
+  if (error || !festival) return { error: error ?? "Festival not found." };
+
+  const { error: rpcError } = await supabase.rpc("close_nominations", {
+    fid: festivalId,
+  });
+
+  if (rpcError) {
+    if (rpcError.message.includes("NOTHING_TO_RANK")) {
+      // Every locked film fits — skip ranking and draw the lineup now.
+      const drawn = await setLineup(festivalId);
+      if (drawn.error) return drawn;
+      return { ok: true, ranking: false };
+    }
+    return { error: rpcError.message };
+  }
+
+  await announce(festival.guild_id, {
+    title: "Rank the nominations",
+    body: "More films than slots — rank your favourites within 24 hours.",
+    path: "/rank",
+  });
+
+  revalidatePath(`/guild/${festival.guild_id}`);
+  return { ok: true, ranking: true };
+}
+
+/**
  * NOMINATING → LINEUP_SET, via the database's set_lineup().
  *
  * Postgres builds the lineup from the locked submissions and shuffles the
