@@ -85,7 +85,7 @@ export default async function NominatePage({
   const [{ data: mine }, { data: countRow }, catalog] = await Promise.all([
     supabase
       .from("nominations")
-      .select("tmdb_id, film, locked")
+      .select("tmdb_id, film, locked, pitch")
       .eq("festival_id", festival.id)
       .eq("user_id", user.id)
       .maybeSingle(),
@@ -132,6 +132,7 @@ export default async function NominatePage({
           theme={festival.theme}
           catalog={catalog}
           initialPick={(mine?.film as Film) ?? null}
+          initialPitch={mine?.pitch ?? ""}
           initialLocked={Boolean(mine?.locked)}
           initialSubmitted={Number(counts?.submitted ?? 0)}
           expected={Number(counts?.expected ?? 0)}

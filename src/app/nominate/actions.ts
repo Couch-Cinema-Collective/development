@@ -39,6 +39,7 @@ async function counts(festivalId: string) {
 export async function nominate(
   festivalId: string,
   film: Film,
+  pitch = "",
 ): Promise<NominateResult> {
   const supabase = await createClient();
   const {
@@ -52,11 +53,18 @@ export async function nominate(
       user_id: user.id,
       tmdb_id: film.id,
       film,
+      pitch: pitch.trim().slice(0, 200),
     },
     { onConflict: "festival_id,user_id" },
   );
 
   if (error) {
+    // First to nominate a title claims it (FESTIVAL-SPEC.md).
+    if (error.code === "23505") {
+      return {
+        error: `Someone already claimed ${film.title} — first come, first served. Pick another.`,
+      };
+    }
     return {
       error:
         "Couldn't put that film up — nominations may have closed, or you may not hold a curator seat.",
@@ -65,6 +73,31 @@ export async function nominate(
 
   revalidatePath("/nominate");
   return counts(festivalId);
+}
+
+/**
+ * The Producer's Pitch — up to 200 characters on why this film. Optional,
+ * anonymous until the ceremony, shown on the film's card all festival.
+ */
+export async function savePitch(
+  festivalId: string,
+  pitch: string,
+): Promise<NominateResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Sign in first." };
+
+  const { error } = await supabase
+    .from("nominations")
+    .update({ pitch: pitch.trim().slice(0, 200) })
+    .eq("festival_id", festivalId)
+    .eq("user_id", user.id);
+  if (error) return { error: "Couldn't save the pitch." };
+
+  revalidatePath("/nominate");
+  return {};
 }
 
 /** Withdraw without replacing. Leaves the curator with no film in the lineup. */

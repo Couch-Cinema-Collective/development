@@ -6,6 +6,7 @@ import { FilmPoster } from "./FilmPoster";
 import {
   lockNomination,
   nominate,
+  savePitch,
   withdrawNomination,
 } from "@/app/nominate/actions";
 import { BEST_OF_THE_FEST, type Film } from "@/lib/types";
@@ -17,6 +18,8 @@ export interface NominationPickerProps {
   catalog: Film[];
   /** The curator's current pick, if they have made one. */
   initialPick: Film | null;
+  /** Their producer's pitch, if they wrote one. */
+  initialPitch: string;
   /** True once the pick has been committed to the programme. */
   initialLocked: boolean;
   initialSubmitted: number;
@@ -37,12 +40,15 @@ export function NominationPicker({
   theme,
   catalog,
   initialPick,
+  initialPitch,
   initialLocked,
   initialSubmitted,
   expected,
   live,
 }: NominationPickerProps) {
   const [pick, setPick] = useState<Film | null>(initialPick);
+  const [pitch, setPitch] = useState(initialPitch);
+  const [pitchSaved, setPitchSaved] = useState(false);
   const [locked, setLocked] = useState(initialLocked);
   const [submitted, setSubmitted] = useState(initialSubmitted);
   const [query, setQuery] = useState("");
@@ -98,12 +104,24 @@ export function NominationPicker({
     const previous = pick;
     setPick(film);
     startTransition(async () => {
-      const result = await nominate(festivalId, film);
+      const result = await nominate(festivalId, film, pitch);
       if (result.error) {
         setError(result.error);
         setPick(previous);
       } else if (typeof result.submitted === "number") {
         setSubmitted(result.submitted);
+      }
+    });
+  }
+
+  function submitPitch() {
+    setError(null);
+    startTransition(async () => {
+      const result = await savePitch(festivalId, pitch);
+      if (result.error) setError(result.error);
+      else {
+        setPitchSaved(true);
+        setTimeout(() => setPitchSaved(false), 2000);
       }
     });
   }
@@ -144,6 +162,11 @@ export function NominationPicker({
                 {pick.year}
                 {pick.director ? ` · ${pick.director}` : ""}
               </p>
+              {pitch && (
+                <blockquote className="mt-4 max-w-md border-l-2 border-signal pl-4 text-sm italic leading-relaxed text-ink-soft">
+                  &ldquo;{pitch}&rdquo;
+                </blockquote>
+              )}
               <p className="mt-5 max-w-md text-sm leading-relaxed text-ink-soft">
                 Your submission is in the programme. Nothing more is needed from
                 you — the other curators are still picking theirs, and the
@@ -200,6 +223,35 @@ export function NominationPicker({
                     {pick.overview}
                   </p>
                 )}
+                <div className="mt-5 max-w-lg">
+                  <label
+                    htmlFor="producers-pitch"
+                    className="label-eyebrow block"
+                  >
+                    The producer&apos;s pitch · optional
+                  </label>
+                  <textarea
+                    id="producers-pitch"
+                    value={pitch}
+                    onChange={(e) => setPitch(e.target.value.slice(0, 200))}
+                    rows={3}
+                    placeholder="Why this film? Shown on its card all festival — anonymously, until the ceremony."
+                    className="mt-2 w-full resize-y border border-rule bg-transparent p-3 text-sm leading-relaxed outline-none placeholder:text-ink-faint focus:border-signal"
+                  />
+                  <div className="mt-1.5 flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={submitPitch}
+                      disabled={pending}
+                      className="border border-rule px-4 py-2 text-xs font-medium uppercase tracking-[0.12em] transition-colors hover:border-ink disabled:opacity-50"
+                    >
+                      {pitchSaved ? "Saved ✓" : "Save pitch"}
+                    </button>
+                    <span className="text-xs tabular-nums text-ink-faint">
+                      {pitch.length}/200
+                    </span>
+                  </div>
+                </div>
                 <div className="mt-6 flex flex-wrap items-center gap-3">
                   <button
                     type="button"

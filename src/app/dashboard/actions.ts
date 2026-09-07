@@ -130,6 +130,77 @@ export interface UpvoteResult extends ActionResult {
   remaining?: number;
 }
 
+export type UpvoteKind = "insightful" | "funniest";
+
+export interface AllocateResult extends ActionResult {
+  /** Remaining budget per kind after the change. */
+  insightfulRemaining?: number;
+  funniestRemaining?: number;
+}
+
+/**
+ * Spend or reclaim one "Most Insightful" or "Funniest" upvote — three of
+ * each per critic per film, stacking on one review allowed. Window, budget,
+ * and the own-review ban are enforced by trigger; this translates failures.
+ */
+export async function allocateUpvote(
+  festivalId: string,
+  tmdbId: number,
+  reviewId: string,
+  kind: UpvoteKind,
+  add: boolean,
+): Promise<AllocateResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Sign in first." };
+
+  if (add) {
+    const { error } = await supabase
+      .from("review_votes")
+      .insert({ review_id: reviewId, user_id: user.id, kind });
+    if (error) {
+      return {
+        error: error.message.includes("all three")
+          ? `All three ${kind} upvotes are spent on this film.`
+          : "Couldn't record that upvote.",
+      };
+    }
+  } else {
+    // Reclaim exactly one allocation of this kind.
+    const { data: row } = await supabase
+      .from("review_votes")
+      .select("id")
+      .eq("review_id", reviewId)
+      .eq("user_id", user.id)
+      .eq("kind", kind)
+      .limit(1)
+      .maybeSingle();
+    if (!row) return { error: "No upvote of that kind to take back." };
+    const { error } = await supabase.from("review_votes").delete().eq("id", row.id);
+    if (error) return { error: "Couldn't take that upvote back." };
+  }
+
+  const { data: budgets } = await supabase.rpc("my_upvote_budgets", {
+    fid: festivalId,
+    tid: tmdbId,
+  });
+  const byKind = new Map(
+    ((budgets ?? []) as { kind: string; remaining: number }[]).map((b) => [
+      b.kind,
+      b.remaining,
+    ]),
+  );
+
+  revalidatePath("/dashboard");
+  return {
+    ok: true,
+    insightfulRemaining: byKind.get("insightful"),
+    funniestRemaining: byKind.get("funniest"),
+  };
+}
+
 /**
  * Spend or reclaim one of the three upvotes on a film.
  *
