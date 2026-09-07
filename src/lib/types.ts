@@ -138,6 +138,15 @@ export interface AwardCategory {
   locked?: boolean;
   /** Only Best of the Fest counts toward a curator's record. */
   scoring?: boolean;
+  /** Acting categories: the fixed slate, one nominee per lineup film. */
+  nominees?: ActingNominee[];
+}
+
+/** One pre-set acting nominee — a name attached to a film (FESTIVAL-SPEC.md). */
+export interface ActingNominee {
+  tmdbId: number;
+  name: string;
+  personId?: number;
 }
 
 /** What a festival is about. The president picks one family, then names it. */

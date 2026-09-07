@@ -87,6 +87,20 @@ export function Ballot({
     setBallot((prev) => ({ ...prev, [award.id]: filmId }));
 
     if (needsPerformer(award)) {
+      // A configured slate decides the performer with the film — the whole
+      // point of president-set nominees (FESTIVAL-SPEC.md).
+      const fixed = award.nominees?.find((n) => n.tmdbId === filmId);
+      if (fixed) {
+        const person = {
+          id: fixed.personId ?? 0,
+          name: fixed.name,
+          character: "",
+          profilePath: null,
+        };
+        setPerformers((prev) => ({ ...prev, [award.id]: person }));
+        save(award.id, filmId, person);
+        return;
+      }
       // Switching films invalidates the performer — they weren't in this one.
       setPerformers((prev) => {
         const next = { ...prev };
@@ -202,13 +216,26 @@ export function Ballot({
                       >
                         {film.title}
                       </span>
+                      {needsPerformer(award) &&
+                        (() => {
+                          const fixed = award.nominees?.find(
+                            (n) => n.tmdbId === film.id,
+                          );
+                          return fixed ? (
+                            <span className="block truncate text-xs text-ink-soft">
+                              {fixed.name}
+                            </span>
+                          ) : null;
+                        })()}
                     </button>
                   </li>
                 );
               })}
             </ul>
 
-            {needsPerformer(award) && ballot[award.id] !== undefined && (
+            {needsPerformer(award) &&
+              ballot[award.id] !== undefined &&
+              !award.nominees?.some((n) => n.tmdbId === ballot[award.id]) && (
               <PerformerPicker
                 award={award}
                 cast={castByFilm[ballot[award.id]]}

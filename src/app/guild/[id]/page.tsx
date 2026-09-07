@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { CopyButton } from "@/components/CopyButton";
 import { Countdown } from "@/components/Countdown";
+import { ActingNominees, type ActingAwardRow } from "@/components/ActingNominees";
 import { CuratorSeats } from "@/components/CuratorSeats";
 import { FlaggedReviews, type FlaggedReview } from "@/components/FlaggedReviews";
 import { LockedSubmission } from "@/components/LockedSubmission";
@@ -197,6 +198,37 @@ export default async function GuildPage({
     }));
   }
 
+  // The president's acting-nominee editor: live once the lineup exists.
+  let actingAwards: ActingAwardRow[] = [];
+  let lineupTitles: { tmdbId: number; title: string }[] = [];
+  if (
+    president &&
+    current &&
+    ["LINEUP_SET", "SCREENING", "AWARDS_VOTING"].includes(current.state)
+  ) {
+    const [{ data: awardRows }, { data: filmRows }] = await Promise.all([
+      supabase
+        .from("festival_awards")
+        .select("award_id, name, nominees")
+        .eq("festival_id", current.id)
+        .eq("tier", "performance"),
+      supabase
+        .from("lineup_films")
+        .select("tmdb_id, film, position")
+        .eq("festival_id", current.id)
+        .order("position"),
+    ]);
+    actingAwards = (awardRows ?? []).map((a) => ({
+      awardId: a.award_id,
+      name: a.name,
+      nominees: (a.nominees ?? []) as ActingAwardRow["nominees"],
+    }));
+    lineupTitles = (filmRows ?? []).map((f) => ({
+      tmdbId: f.tmdb_id,
+      title: ((f.film as Film)?.title as string) ?? String(f.tmdb_id),
+    }));
+  }
+
   // Invite links always carry the canonical domain (design decision) — a
   // link copied during local dev must still work for the person receiving it.
   const inviteUrl = `https://www.couchcinemacollective.com/join/${guild.inviteCode}`;
@@ -259,6 +291,15 @@ export default async function GuildPage({
         )}
 
         {president && <FlaggedReviews guildId={guild.id} reports={flagged} />}
+
+        {president && actingAwards.length > 0 && lineupTitles.length > 0 && (
+          <ActingNominees
+            guildId={guild.id}
+            festivalId={current!.id}
+            awards={actingAwards}
+            films={lineupTitles}
+          />
+        )}
 
         {/* ── A submitted film, or what to do next ───────────────────────── */}
         {lockedIn && myNomination?.film && (

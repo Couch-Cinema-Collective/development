@@ -50,7 +50,7 @@ export default async function VotePage({
     await Promise.all([
       supabase
         .from("festival_awards")
-        .select("award_id, name, tier, scoring")
+        .select("award_id, name, tier, scoring, nominees")
         .eq("festival_id", festival.id),
       supabase
         .from("lineup_films")
@@ -78,6 +78,7 @@ export default async function VotePage({
         name: a.name,
         tier: a.tier as AwardCategory["tier"],
         scoring: a.scoring,
+        nominees: (a.nominees ?? []) as AwardCategory["nominees"],
       }),
     ),
   );
