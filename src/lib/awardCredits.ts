@@ -88,21 +88,42 @@ export async function getAwardCredits(
 
   const festivalsWon = credits.filter((c) => c.scoring).length;
 
+  // Best Critic wins: published, penalty-checked results first (v2), the
+  // raw standings only for festivals published before that existed.
+  const { data: criticWins } = await supabase
+    .from("award_results")
+    .select("festival_id")
+    .in("festival_id", festivalIds)
+    .eq("award_id", "best-critic")
+    .eq("winner_id", userId);
+  const publishedWinIds = new Set((criticWins ?? []).map((w) => w.festival_id));
+  const { data: anyCriticRows } = await supabase
+    .from("award_results")
+    .select("festival_id")
+    .in("festival_id", festivalIds)
+    .eq("award_id", "best-critic");
+  const hasPublishedCritic = new Set(
+    (anyCriticRows ?? []).map((w) => w.festival_id),
+  );
+
   // Upvotes earned as a critic, across every finished festival.
   const standings = await Promise.all(
     festivalIds.map(async (id) => {
-      const { data } = await supabase.rpc("critic_standings", { fid: id });
-      const rows = (data ?? []) as { user_id: string; upvotes: number }[];
+      const { data } = await supabase.rpc("critic_standings_v2", { fid: id });
+      const rows = (data ?? []) as { user_id: string; points: number }[];
       const mine = rows.find((r) => r.user_id === userId);
       return {
-        upvotes: Number(mine?.upvotes ?? 0),
+        id,
+        upvotes: Number(mine?.points ?? 0),
         // A win is topping the table, not merely appearing in it.
-        wonVoice: rows[0]?.user_id === userId && Number(rows[0].upvotes) > 0,
+        wonVoice: rows[0]?.user_id === userId && Number(rows[0].points) > 0,
       };
     }),
   );
   const upvotesEarned = standings.reduce((sum, s) => sum + s.upvotes, 0);
-  const voiceWins = standings.filter((s) => s.wonVoice).length;
+  const voiceWins =
+    publishedWinIds.size +
+    standings.filter((s) => s.wonVoice && !hasPublishedCritic.has(s.id)).length;
 
   return {
     credits,

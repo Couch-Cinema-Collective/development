@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { Ballot } from "@/components/Ballot";
 import { getCurrentFestival } from "@/lib/guilds";
+import { Countdown } from "@/components/Countdown";
 import { ceremonyOrder } from "@/lib/mock/awards";
 import { toLineup, type LineupRow } from "@/lib/lineup";
 import { createClient } from "@/lib/supabase/server";
@@ -46,8 +47,14 @@ export default async function VotePage({
     );
   }
 
-  const [{ data: awardRows }, { data: lineupRows }, { data: watchedRows }, { data: voteRows }] =
-    await Promise.all([
+  const [
+    { data: awardRows },
+    { data: lineupRows },
+    { data: watchedRows },
+    { data: voteRows },
+    { data: candidateRows },
+    { data: festivalRow },
+  ] = await Promise.all([
       supabase
         .from("festival_awards")
         .select("award_id, name, tier, scoring, nominees")
@@ -65,9 +72,15 @@ export default async function VotePage({
         .eq("user_id", user.id),
       supabase
         .from("votes")
-        .select("award_id, tmdb_id, person")
+        .select("award_id, tmdb_id, person, review_id")
         .eq("festival_id", festival.id)
         .eq("user_id", user.id),
+      supabase.rpc("best_review_candidates", { fid: festival.id }),
+      supabase
+        .from("festivals")
+        .select("awards_close_at")
+        .eq("id", festival.id)
+        .maybeSingle(),
     ]);
 
   // Announcement order: honorary first, Best of the Fest last.
@@ -83,6 +96,38 @@ export default async function VotePage({
     ),
   );
   const lineup = toLineup((lineupRows ?? []) as LineupRow[]);
+
+  // The Best Review shortlist — authors are revealed (every film has closed
+  // by the time the ballot opens), so name them.
+  type CandidateRow = {
+    review_id: string;
+    user_id: string;
+    tmdb_id: number;
+    body: string;
+    upvotes: number;
+  };
+  const candidates = (candidateRows ?? []) as CandidateRow[];
+  const authorIds = [...new Set(candidates.map((c) => c.user_id))];
+  const { data: authorProfiles } = authorIds.length
+    ? await supabase.from("profiles").select("id, full_name").in("id", authorIds)
+    : { data: [] };
+  const authorById = new Map(
+    (authorProfiles ?? []).map((a) => [a.id, a.full_name || "Member"]),
+  );
+  const titleByFilm = new Map(
+    lineup.map((l) => [l.film.id, l.film.title as string]),
+  );
+  const reviewCandidates = candidates.map((c) => ({
+    reviewId: c.review_id,
+    tmdbId: c.tmdb_id,
+    filmTitle: titleByFilm.get(c.tmdb_id) ?? "",
+    authorName: authorById.get(c.user_id) ?? "Member",
+    body: c.body,
+    upvotes: Number(c.upvotes),
+  }));
+  const initialReviewId =
+    (voteRows ?? []).find((v) => v.award_id === "best-review")?.review_id ??
+    null;
   const initialBallot: Record<string, number> = {};
   const initialPerformers: Record<string, CastMember> = {};
   for (const v of voteRows ?? []) {
@@ -103,6 +148,18 @@ export default async function VotePage({
           One vote per category. {BEST_OF_THE_FEST} is the one that settles the
           festival — the rest are honorary, and announced first.
         </p>
+        {festivalRow?.awards_close_at && (
+          <div className="mt-5">
+            <p className="label-eyebrow">Ballots close in</p>
+            <div className="mt-1.5">
+              <Countdown
+                deadline={festivalRow.awards_close_at}
+                expiredLabel="Ballots closed"
+                size="small"
+              />
+            </div>
+          </div>
+        )}
       </header>
 
       <div className="mt-12">
@@ -113,6 +170,8 @@ export default async function VotePage({
           watchedIds={(watchedRows ?? []).map((w) => w.tmdb_id)}
           initialBallot={initialBallot}
           initialPerformers={initialPerformers}
+          reviewCandidates={reviewCandidates}
+          initialReviewId={initialReviewId}
         />
       </div>
     </main>

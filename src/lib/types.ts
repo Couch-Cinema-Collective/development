@@ -306,4 +306,5 @@ export const MAX_CUSTOM_AWARDS = 10;
 
 /** The award that settles the festival, and the one the critics play for. */
 export const BEST_OF_THE_FEST = "Best of the Fest";
-export const VOICE_OF_THE_PEOPLE = "Voice of the People";
+/** The critics' award (FESTIVAL-SPEC.md calls it Best Critic). */
+export const VOICE_OF_THE_PEOPLE = "Best Critic";

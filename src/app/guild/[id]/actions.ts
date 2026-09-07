@@ -210,13 +210,17 @@ export async function openAwardsVoting(
 
   const { error: stateError } = await supabase
     .from("festivals")
-    .update({ state: "AWARDS_VOTING" })
+    .update({
+      state: "AWARDS_VOTING",
+      // Three days to fill the ballot (FESTIVAL-SPEC.md).
+      awards_close_at: new Date(Date.now() + 3 * 86_400_000).toISOString(),
+    })
     .eq("id", festivalId);
   if (stateError) return { error: stateError.message };
 
   await announce(festival.guild_id, {
     title: "The ballot is open",
-    body: "One pick per award. Best of the Fest decides the festival.",
+    body: "Three days, one pick per award. Best Film decides the festival.",
     path: "/vote",
   });
 
@@ -230,18 +234,28 @@ export async function openAwardsVoting(
  */
 export async function publishFestival(
   festivalId: string,
+  revealAtIso?: string,
 ): Promise<FestivalActionResult> {
   const { supabase, festival, error } = await requirePresident(festivalId);
   if (error || !festival) return { error: error ?? "Festival not found." };
 
-  const { error: rpcError } = await supabase.rpc("publish_festival", {
+  const revealAt =
+    revealAtIso && !Number.isNaN(Date.parse(revealAtIso))
+      ? new Date(revealAtIso).toISOString()
+      : new Date().toISOString();
+
+  const { error: rpcError } = await supabase.rpc("publish_festival_v2", {
     fid: festivalId,
+    reveal_at: revealAt,
   });
   if (rpcError) return { error: rpcError.message };
 
+  const immediate = Date.parse(revealAt) <= Date.now() + 60_000;
   await announce(festival.guild_id, {
-    title: "The envelopes are open",
-    body: "Best of the Fest and Voice of the People are decided.",
+    title: immediate ? "The envelopes are open" : "The ceremony is scheduled",
+    body: immediate
+      ? "Best Film and Best Critic are decided."
+      : "The countdown to the reveal is running — don't miss it.",
     path: "/ceremony",
   });
 

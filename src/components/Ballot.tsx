@@ -13,6 +13,15 @@ import {
   type Film,
 } from "@/lib/types";
 
+export interface ReviewCandidate {
+  reviewId: string;
+  tmdbId: number;
+  filmTitle: string;
+  authorName: string;
+  body: string;
+  upvotes: number;
+}
+
 interface BallotProps {
   festivalId: string;
   awards: AwardCategory[];
@@ -22,6 +31,9 @@ interface BallotProps {
   initialBallot: BallotType;
   /** Saved performer picks for the acting categories: award id → cast member. */
   initialPerformers: Record<string, CastMember>;
+  /** The top-upvoted reviews of the season — the Best Review shortlist. */
+  reviewCandidates: ReviewCandidate[];
+  initialReviewId: string | null;
 }
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -33,10 +45,13 @@ export function Ballot({
   watchedIds,
   initialBallot,
   initialPerformers,
+  reviewCandidates,
+  initialReviewId,
 }: BallotProps) {
   const [ballot, setBallot] = useState<BallotType>(initialBallot);
   const [performers, setPerformers] =
     useState<Record<string, CastMember>>(initialPerformers);
+  const [reviewPick, setReviewPick] = useState<string | null>(initialReviewId);
   const [castByFilm, setCastByFilm] = useState<Record<number, CastMember[]>>({});
   const [loadingCast, setLoadingCast] = useState<number | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
@@ -247,6 +262,62 @@ export function Ballot({
           </li>
         ))}
       </ol>
+
+      {reviewCandidates.length > 0 && (
+        <section className="mt-14">
+          <h2 className="text-2xl font-medium uppercase leading-none tracking-tight">
+            Best Review
+          </h2>
+          <p className="mt-2 max-w-lg text-sm leading-relaxed text-ink-soft">
+            The season&apos;s most upvoted write-ups. Your vote here also adds
+            a point to the author&apos;s Best Critic score.
+          </p>
+          <ul className="mt-5 grid gap-px border border-rule bg-rule">
+            {reviewCandidates.map((c) => {
+              const chosen = reviewPick === c.reviewId;
+              return (
+                <li key={c.reviewId} className="bg-paper-raised">
+                  <button
+                    type="button"
+                    aria-pressed={chosen}
+                    onClick={() => {
+                      setReviewPick(c.reviewId);
+                      void castVote({
+                        festivalId,
+                        awardId: "best-review",
+                        tmdbId: c.tmdbId,
+                        reviewId: c.reviewId,
+                      }).then((result) => {
+                        if (result.error) setSaveError(result.error);
+                      });
+                    }}
+                    className={`block w-full border-l-2 px-5 py-4 text-left transition-colors ${
+                      chosen
+                        ? "border-signal"
+                        : "border-transparent hover:border-rule"
+                    }`}
+                  >
+                    <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                      <span
+                        className={`text-sm font-medium ${chosen ? "text-signal" : ""}`}
+                      >
+                        {c.authorName}
+                      </span>
+                      <span className="text-xs text-ink-faint">
+                        on {c.filmTitle} · {c.upvotes} upvote
+                        {c.upvotes === 1 ? "" : "s"}
+                      </span>
+                    </span>
+                    <span className="mt-1.5 block text-sm leading-relaxed text-ink-soft">
+                      &ldquo;{c.body}&rdquo;
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       <p className="mt-16 border-t border-rule pt-6 text-sm leading-relaxed text-ink-soft">
         Every pick saves the moment you make it, and you can change any of them

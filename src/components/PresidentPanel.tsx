@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 
+import { publishFestival as publishWithReveal } from "@/app/guild/[id]/actions";
+
 import {
   archiveFestival,
   closeNominations,
@@ -81,7 +83,7 @@ const STEPS: Record<string, Step> = {
     label: "Publish the ceremony",
     confirm:
       "Publish? Winners are computed from the ballots as they stand and cannot be altered afterward.",
-    note: "You see the results at the same moment everyone else does.",
+    note: "Results seal now; the guild sees them at the reveal time you set.",
     run: publishFestival,
   },
   CEREMONY: {
@@ -111,6 +113,7 @@ export function PresidentPanel({
   awaitingOpen?: boolean;
 }) {
   const [error, setError] = useState<string | null>(null);
+  const [revealAt, setRevealAt] = useState("");
   const [pending, startTransition] = useTransition();
 
   // Offer the Open button whenever nothing has begun, whatever the state says.
@@ -125,7 +128,14 @@ export function PresidentPanel({
     if (step.confirm && !window.confirm(step.confirm)) return;
     setError(null);
     startTransition(async () => {
-      const result = await step.run!(festivalId);
+      // Publishing carries the scheduled reveal; everything else is plain.
+      const result =
+        state === "AWARDS_VOTING"
+          ? await publishWithReveal(
+              festivalId,
+              revealAt ? new Date(revealAt).toISOString() : undefined,
+            )
+          : await step.run!(festivalId);
       if (result.error) setError(result.error);
     });
   }
@@ -139,6 +149,23 @@ export function PresidentPanel({
 
       {step.label && (
         <div className="mt-5">
+          {state === "AWARDS_VOTING" && (
+            <label className="mb-4 block max-w-xs">
+              <span className="label-eyebrow block">
+                Reveal the results at · optional
+              </span>
+              <input
+                type="datetime-local"
+                value={revealAt}
+                onChange={(e) => setRevealAt(e.target.value)}
+                className="mt-1.5 w-full border border-rule bg-transparent px-3 py-2 text-sm outline-none focus:border-signal"
+              />
+              <span className="mt-1 block text-xs leading-relaxed text-ink-faint">
+                Leave empty to reveal immediately. Until then only you can see
+                the results; the guild sees a countdown.
+              </span>
+            </label>
+          )}
           <button
             type="button"
             onClick={activate}
