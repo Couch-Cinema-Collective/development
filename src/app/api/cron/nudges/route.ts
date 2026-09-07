@@ -22,8 +22,9 @@ type Nudge = {
 /**
  * The guilt-trip engine (FESTIVAL-SPEC.md): scheduled nudges against the
  * weekly clock, each sent exactly once per member per film per failing —
- * nudge_log's primary key is the guarantee. Runs every few hours via
- * Vercel Cron; quiet whenever there is nothing to feel guilty about.
+ * nudge_log's primary key is the guarantee. Runs daily at 9am Pacific via
+ * Vercel Cron (the Hobby plan's ceiling), so every window is wider than a
+ * day; quiet whenever there is nothing to feel guilty about.
  */
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
@@ -85,7 +86,7 @@ export async function GET(request: Request) {
         const reviewed = new Set((reviewRows ?? []).map((r) => r.user_id));
 
         // Sunday looms: not watched yet.
-        if (now < lockAt && lockAt - now < 36 * HOUR) {
+        if (now < lockAt && lockAt - now < 60 * HOUR) {
           nudges.push({
             festivalId: festival.id,
             tmdbId: f.tmdb_id,
@@ -110,7 +111,7 @@ export async function GET(request: Request) {
         }
 
         // Voting window closing: upvotes unspent.
-        if (now >= lockAt && now < closeAt && closeAt - now < 24 * HOUR) {
+        if (now >= lockAt && now < closeAt && closeAt - now < 30 * HOUR) {
           const { data: voteRows } = await admin
             .from("review_votes")
             .select("user_id, review_id, reviews!inner(festival_id, tmdb_id)")
@@ -149,7 +150,7 @@ export async function GET(request: Request) {
     // ── The final ballot: three days, and some ballots sit empty ───────────
     if (festival.state === "AWARDS_VOTING" && festival.awards_close_at) {
       const closeAt = Date.parse(festival.awards_close_at);
-      if (now < closeAt && closeAt - now < 24 * HOUR) {
+      if (now < closeAt && closeAt - now < 30 * HOUR) {
         const [{ data: awardRows }, { data: ballotRows }] = await Promise.all([
           admin
             .from("festival_awards")
