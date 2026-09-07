@@ -72,6 +72,7 @@ export default async function DashboardPage({
     { data: watchedRows },
     { data: myReviews },
     { data: standings },
+    { data: misses },
     { data: membership },
   ] = await Promise.all([
     supabase
@@ -90,7 +91,8 @@ export default async function DashboardPage({
       .select("tmdb_id, body")
       .eq("festival_id", festival.id)
       .eq("user_id", user.id),
-    supabase.rpc("critic_standings", { fid: festival.id }),
+    supabase.rpc("critic_standings_v2", { fid: festival.id }),
+    supabase.rpc("festival_misses", { fid: festival.id }),
     supabase
       .from("guild_members")
       .select("role")
@@ -187,9 +189,36 @@ export default async function DashboardPage({
     reportedByMe: reportedByMe.has(r.id),
   }));
 
-  const myStanding = (
-    (standings ?? []) as { user_id: string; upvotes: number }[]
-  ).find((s) => s.user_id === user.id);
+  const standingRows = (standings ?? []) as {
+    user_id: string;
+    points: number;
+    reviews_written: number;
+  }[];
+  const myStanding = standingRows.find((s) => s.user_id === user.id);
+
+  // Names for the board — top eight, plus wherever the member sits.
+  const boardRows = standingRows.slice(0, 8);
+  const boardIds = [...new Set(boardRows.map((b) => b.user_id))];
+  const { data: boardProfiles } = boardIds.length
+    ? await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", boardIds)
+    : { data: [] };
+  const boardNameById = new Map(
+    (boardProfiles ?? []).map((b) => [b.id, b.full_name || "Member"]),
+  );
+  const leaderboard = boardRows.map((b) => ({
+    name: boardNameById.get(b.user_id) ?? "Member",
+    points: Number(b.points),
+    me: b.user_id === user.id,
+  }));
+
+  const myMisses = Number(
+    ((misses ?? []) as { user_id: string; missed: number }[]).find(
+      (m) => m.user_id === user.id,
+    )?.missed ?? 0,
+  );
 
   // Festival awards this member's nominations have already taken.
   const { data: wins } = await supabase
@@ -238,7 +267,9 @@ export default async function DashboardPage({
           insightfulSpent={spentByKind.get("insightful") ?? 0}
           funniestSpent={spentByKind.get("funniest") ?? 0}
           pitch={typeof pitch === "string" ? pitch : ""}
-          upvotesEarned={Number(myStanding?.upvotes ?? 0)}
+          upvotesEarned={Number(myStanding?.points ?? 0)}
+          leaderboard={leaderboard}
+          myMisses={myMisses}
           reviewsFiled={(myReviews ?? []).length}
           festivalAwards={(wins ?? []).length}
           isCurator={isCurator(role)}

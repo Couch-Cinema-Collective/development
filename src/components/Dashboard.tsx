@@ -65,6 +65,10 @@ export interface DashboardProps {
   pitch: string;
   /** Standing: what this member has earned so far. */
   upvotesEarned: number;
+  /** The Best Critic board — revealed weeks only, names resolved. */
+  leaderboard: { name: string; points: number; me: boolean }[];
+  /** Watch windows this member let close unwatched. >0 means: can't win. */
+  myMisses: number;
   reviewsFiled: number;
   festivalAwards: number;
   /** Curators have a film in the lineup; critics do not. */
@@ -93,6 +97,8 @@ export function Dashboard({
   funniestSpent,
   pitch,
   upvotesEarned,
+  leaderboard,
+  myMisses,
   reviewsFiled,
   festivalAwards,
   isCurator,
@@ -247,6 +253,16 @@ export function Dashboard({
   return (
     <div className="grid gap-10 lg:grid-cols-[1fr_300px]">
       <div className="min-w-0 space-y-10">
+        {myMisses > 0 && (
+          <p className="border border-signal bg-paper-raised px-5 py-4 text-sm leading-relaxed">
+            <span className="font-medium text-signal">
+              You missed {myMisses} watch window{myMisses === 1 ? "" : "s"}.
+            </span>{" "}
+            The film stays, your reviews and votes still count — but you can
+            no longer win this festival&apos;s awards.
+          </p>
+        )}
+
         {/* ── What you owe right now ─────────────────────────────────────── */}
         {current && phase && deadline ? (
           <section className="border border-ink bg-paper-raised">
@@ -578,6 +594,39 @@ export function Dashboard({
             curators included.
           </p>
         </section>
+
+        {leaderboard.length > 0 && (
+          <section className="border border-rule bg-paper-raised px-5 py-5">
+            <h2 className="label-eyebrow border-b border-rule pb-2">
+              Best Critic — the board
+            </h2>
+            <ol className="mt-4 grid gap-2.5">
+              {leaderboard.map((row, i) => (
+                <li
+                  key={`${row.name}-${i}`}
+                  className="flex items-baseline gap-3"
+                >
+                  <span className="w-5 shrink-0 text-sm tabular-nums text-ink-faint">
+                    {i + 1}
+                  </span>
+                  <span
+                    className={`min-w-0 flex-1 truncate text-sm ${row.me ? "font-medium text-signal" : ""}`}
+                  >
+                    {row.name}
+                    {row.me && " (you)"}
+                  </span>
+                  <span className="shrink-0 text-sm font-medium tabular-nums">
+                    {row.points}
+                  </span>
+                </li>
+              ))}
+            </ol>
+            <p className="mt-4 text-xs leading-relaxed text-ink-faint">
+              Updates Wednesdays as each film&apos;s votes are revealed.
+              Insightful and Funniest both score one point.
+            </p>
+          </section>
+        )}
 
         {next && current && (
           <section className="border border-rule bg-paper-raised px-5 py-5">
