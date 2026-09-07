@@ -60,7 +60,7 @@ export async function nominate(
 
   if (error) {
     // First to nominate a title claims it (FESTIVAL-SPEC.md).
-    if (error.code === "23505") {
+    if (error.message.includes("already claimed")) {
       return {
         error: `Someone already claimed ${film.title} — first come, first served. Pick another.`,
       };

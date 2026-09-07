@@ -16,8 +16,32 @@ alter table public.nominations add constraint nominations_pitch_check
   check (char_length(pitch) <= 200);
 
 -- First to nominate a title claims it — no duplicates within a festival.
-create unique index if not exists nominations_one_film_per_festival
-  on public.nominations (festival_id, tmdb_id);
+-- Enforced by trigger rather than a unique index: legacy festivals already
+-- hold duplicate picks, and history is not ours to rewrite. New nominations
+-- are policed; old rows stand.
+drop index if exists public.nominations_one_film_per_festival;
+
+create or replace function public.enforce_film_claim()
+returns trigger
+language plpgsql security definer set search_path = ''
+as $$
+begin
+  if exists (
+    select 1 from public.nominations n
+    where n.festival_id = new.festival_id
+      and n.tmdb_id = new.tmdb_id
+      and n.user_id <> new.user_id
+  ) then
+    raise exception 'This film is already claimed for this festival';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists film_claim_check on public.nominations;
+create trigger film_claim_check
+  before insert or update of tmdb_id on public.nominations
+  for each row execute procedure public.enforce_film_claim();
 
 -- Nomination rows carry user_id, so the pitch surfaces through a definer
 -- function rather than a select policy — anonymity holds until the ceremony.
