@@ -7,13 +7,7 @@ import { getAwardCredits } from "@/lib/awardCredits";
 import { getUserMemberships } from "@/lib/guilds";
 import { getLiveScreenings } from "@/lib/liveScreenings";
 import { createClient } from "@/lib/supabase/server";
-import {
-  MAX_CURATORS,
-  MAX_CRITICS,
-  MIN_CURATORS,
-  VOICE_OF_THE_PEOPLE,
-  isCurator,
-} from "@/lib/types";
+import { MAX_CRITICS, VOICE_OF_THE_PEOPLE } from "@/lib/types";
 
 const ROLE_LABEL: Record<string, string> = {
   president: "Guild President",
@@ -130,17 +124,10 @@ export default async function WelcomePage() {
           </>
         )}
 
-        {active.some((m) => isCurator(m.role)) && (
-          <p className="mt-12 text-sm text-paper/70">
-            Curating is on top of critiquing, never instead of it — you still
-            watch, review, and vote on every film, your own included.
-          </p>
-        )}
-
         {/* What's open right now, across every guild — click straight in. */}
         {liveScreenings.length > 0 && (
           <section className="mt-12">
-            <div className="mx-auto max-w-md border border-ink bg-paper-raised px-6 py-8 text-center sm:max-w-lg sm:px-10 sm:py-12">
+            <div className="bg-paper-raised px-6 py-8 text-center sm:px-10 sm:py-12">
               <h2 className="text-balance text-3xl font-black uppercase leading-[0.85] tracking-tight text-ink sm:text-5xl">
                 Now Playing
               </h2>
@@ -183,13 +170,13 @@ export default async function WelcomePage() {
         <div className="mt-16 border-t border-paper/25 pt-10">
           <div className="grid gap-12 sm:grid-cols-2">
             <section>
-              <h2 className="label-eyebrow text-paper/70">
+              <h2 className="text-sm font-bold uppercase tracking-[0.14em] text-paper">
                 Establish a guild
               </h2>
               <p className="mt-4 text-sm leading-relaxed text-paper/80">
-                You become its president: you decide how many of the{" "}
-                {MIN_CURATORS}–{MAX_CURATORS} curator seats exist, set the
-                festival theme, and run the ceremony.
+                Start your own guild and begin hosting film festivals! You
+                establish the festival theme and invite your friends to join,
+                nominate, and vote.
               </p>
               <div className="mt-6 border border-ink bg-paper-raised p-6">
                 <CreateGuildForm />
@@ -197,10 +184,12 @@ export default async function WelcomePage() {
             </section>
 
             <section>
-              <h2 className="label-eyebrow text-paper/70">Join a guild</h2>
+              <h2 className="text-sm font-bold uppercase tracking-[0.14em] text-paper">
+                Join a guild
+              </h2>
               <p className="mt-4 text-sm leading-relaxed text-paper/80">
-                Have an invite code or link? Walk in as a critic, or take one
-                of the curator seats if any are still free.
+                Have an invite code or link? Join a guild to be a part of its
+                next film festival!
               </p>
               <div className="mt-6 border border-ink bg-paper-raised p-6">
                 <JoinGuildForm />

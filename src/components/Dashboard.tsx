@@ -519,35 +519,36 @@ export function Dashboard({
               const p = phaseOf(entry);
               const isCurrent = current?.film.id === entry.film.id;
               return (
-                <li
-                  key={entry.film.id}
-                  className={`flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-5 py-4 ${
-                    isCurrent ? "bg-paper-raised" : "bg-paper"
-                  }`}
-                >
-                  <span className="flex min-w-0 items-baseline gap-3">
-                    <span className="label-eyebrow tabular-nums">
-                      {String(entry.position).padStart(2, "0")}
+                <li key={entry.film.id}>
+                  <Link
+                    href={`/guild/${guildId}/film/${entry.film.id}`}
+                    className={`flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-5 py-4 transition-colors ${
+                      isCurrent
+                        ? "bg-paper-raised hover:bg-paper"
+                        : "bg-paper hover:bg-paper-raised"
+                    }`}
+                  >
+                    <span className="flex min-w-0 items-baseline gap-3">
+                      <span className="label-eyebrow tabular-nums">
+                        {String(entry.position).padStart(2, "0")}
+                      </span>
+                      <span
+                        className={`truncate text-sm font-medium tracking-tight ${
+                          p === "UPCOMING" ? "text-ink-faint" : ""
+                        }`}
+                      >
+                        {entry.film.title}
+                      </span>
+                      {watched.has(entry.film.id) && (
+                        <span className="label-eyebrow">Watched</span>
+                      )}
                     </span>
                     <span
-                      className={`truncate text-sm font-medium tracking-tight ${
-                        p === "UPCOMING" ? "text-ink-faint" : ""
-                      }`}
+                      className={`label-eyebrow ${isCurrent ? "text-signal" : ""}`}
                     >
-                      {/* Titles stay hidden until a film's own window opens. */}
-                      {p === "UPCOMING" && !isCurrent
-                        ? "Announced when it opens"
-                        : entry.film.title}
+                      {PHASE_LABELS[p]}
                     </span>
-                    {watched.has(entry.film.id) && (
-                      <span className="label-eyebrow">Watched</span>
-                    )}
-                  </span>
-                  <span
-                    className={`label-eyebrow ${isCurrent ? "text-signal" : ""}`}
-                  >
-                    {PHASE_LABELS[p]}
-                  </span>
+                  </Link>
                 </li>
               );
             })}
@@ -633,11 +634,14 @@ export function Dashboard({
             <h2 className="label-eyebrow border-b border-rule pb-2">
               Coming next
             </h2>
-            <p className="mt-4 text-lg font-medium uppercase leading-tight tracking-tight">
-              Film {next.position}
-            </p>
+            <Link
+              href={`/guild/${guildId}/film/${next.film.id}`}
+              className="mt-4 block text-lg font-medium uppercase leading-tight tracking-tight transition-colors hover:text-signal"
+            >
+              {next.film.title}
+            </Link>
             <p className="mt-1 text-xs text-ink-faint">
-              Title announced when it opens — no reading ahead.
+              Film {next.position} of {lineup.length}
             </p>
             <div className="mt-4">
               <p className="label-eyebrow">Opens in</p>
