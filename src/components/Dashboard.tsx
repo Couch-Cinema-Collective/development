@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 
 import { Countdown } from "./Countdown";
@@ -13,13 +13,7 @@ import {
   setWatched,
   type UpvoteKind,
 } from "@/app/dashboard/actions";
-import {
-  PHASE_LABELS,
-  allClosed,
-  notYetOpen,
-  phaseDeadline,
-  phaseOf,
-} from "@/lib/lineup";
+import { PHASE_LABELS, phaseDeadline, phaseOf } from "@/lib/lineup";
 import {
   REVIEW_MAX_CHARS,
   UPVOTES_PER_FILM,
@@ -28,7 +22,7 @@ import {
   type ScreeningPhase,
 } from "@/lib/types";
 
-/** One entry in the review thread, as film_reviews() returns it. */
+/** One entry in a film's review thread, as film_reviews_v2() returns it. */
 export interface ThreadReview {
   id: string;
   /** Withheld until the voting window shuts — anonymity is the point. */
@@ -56,8 +50,8 @@ export interface DashboardProps {
   current: LineupFilm | null;
   next: LineupFilm | null;
   watchedIds: number[];
-  /** Reviews for the current film only — the rest are read on its own page. */
-  thread: ThreadReview[];
+  /** Review threads, keyed by tmdb id — closed films and the current one. */
+  threadsByFilmId: Record<number, ThreadReview[]>;
   myReview: string;
   insightfulSpent: number;
   funniestSpent: number;
@@ -91,7 +85,7 @@ export function Dashboard({
   current,
   next,
   watchedIds,
-  thread,
+  threadsByFilmId,
   myReview,
   insightfulSpent,
   funniestSpent,
@@ -106,7 +100,9 @@ export function Dashboard({
 }: DashboardProps) {
   const [watched, setWatchedState] = useState(new Set(watchedIds));
   const [reviewText, setReviewText] = useState(myReview);
-  const [reviews, setReviews] = useState(thread);
+  const [reviews, setReviews] = useState(
+    current ? (threadsByFilmId[current.film.id] ?? []) : [],
+  );
   const [spent, setSpent] = useState<Record<UpvoteKind, number>>({
     insightful: insightfulSpent,
     funniest: funniestSpent,
@@ -117,7 +113,6 @@ export function Dashboard({
 
   const phase: ScreeningPhase | null = current ? phaseOf(current) : null;
   const deadline = current ? phaseDeadline(current) : null;
-  const isWatched = current ? watched.has(current.film.id) : false;
   const remaining: Record<UpvoteKind, number> = {
     insightful: UPVOTES_PER_FILM - spent.insightful,
     funniest: UPVOTES_PER_FILM - spent.funniest,
@@ -127,6 +122,38 @@ export function Dashboard({
     () => lineup.filter((f) => phaseOf(f) === "CLOSED").length,
     [lineup],
   );
+
+  // ── The carousel: which slide is showing, and how to get to another ──────
+  const slideRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const [activeIndex, setActiveIndex] = useState(() => {
+    const i = current ? lineup.findIndex((f) => f.film.id === current.film.id) : 0;
+    return i >= 0 ? i : 0;
+  });
+  const didInit = useRef(false);
+  useEffect(() => {
+    if (didInit.current) return;
+    didInit.current = true;
+    // Land on the current film instantly — no smooth-scroll on first paint.
+    slideRefs.current[activeIndex]?.scrollIntoView({
+      inline: "start",
+      block: "nearest",
+    });
+  }, [activeIndex]);
+
+  function scrollToIndex(i: number) {
+    const clamped = Math.max(0, Math.min(lineup.length - 1, i));
+    setActiveIndex(clamped);
+    slideRefs.current[clamped]?.scrollIntoView({
+      behavior: "smooth",
+      inline: "start",
+      block: "nearest",
+    });
+  }
+
+  function scrollToFilm(tmdbId: number) {
+    const i = lineup.findIndex((f) => f.film.id === tmdbId);
+    if (i >= 0) scrollToIndex(i);
+  }
 
   // Mirror the festival clock onto the iOS widget and Live Activity. On the
   // web this is a no-op; on device it keeps the Lock Screen honest.
@@ -252,7 +279,7 @@ export function Dashboard({
 
   return (
     <div className="grid gap-10 lg:grid-cols-[1fr_300px]">
-      <div className="min-w-0 space-y-10">
+      <div className="min-w-0 space-y-8">
         {myMisses > 0 && (
           <p className="border border-signal bg-paper-raised px-5 py-4 text-sm leading-relaxed">
             <span className="font-medium text-signal">
@@ -263,195 +290,58 @@ export function Dashboard({
           </p>
         )}
 
-        {/* ── What you owe right now ─────────────────────────────────────── */}
-        {current && phase && deadline ? (
-          <section className="border border-ink bg-paper-raised">
-            <div className="flex flex-wrap items-baseline justify-between gap-4 border-b border-rule px-6 py-4">
-              <p className="label-eyebrow text-signal">
-                {PHASE_LABELS[phase]} · Film {current.position} of{" "}
-                {lineup.length}
-              </p>
+        {lineup.length > 0 ? (
+          <section>
+            <div className="flex items-center justify-between gap-4">
+              <button
+                type="button"
+                onClick={() => scrollToIndex(activeIndex - 1)}
+                disabled={activeIndex === 0}
+                className="border border-ink px-4 py-2 text-xs uppercase tracking-[0.12em] transition-colors hover:bg-ink hover:text-paper disabled:pointer-events-none disabled:opacity-30"
+              >
+                ← Previous
+              </button>
               <p className="label-eyebrow">
-                {guildName} · Festival {festivalNumber}
+                Film {lineup[activeIndex]?.position} of {lineup.length}
               </p>
+              <button
+                type="button"
+                onClick={() => scrollToIndex(activeIndex + 1)}
+                disabled={activeIndex === lineup.length - 1}
+                className="border border-ink px-4 py-2 text-xs uppercase tracking-[0.12em] transition-colors hover:bg-ink hover:text-paper disabled:pointer-events-none disabled:opacity-30"
+              >
+                Next →
+              </button>
             </div>
 
-            <div className="grid gap-8 px-6 py-8 sm:grid-cols-[128px_1fr]">
-              <div className="w-32">
-                <FilmPoster film={current.film} />
-              </div>
-
-              <div className="min-w-0">
-                <h2 className="break-words text-3xl font-medium uppercase leading-none tracking-tight sm:text-4xl">
-                  {current.film.title}
-                </h2>
-                <p className="mt-2 text-sm text-ink-faint">
-                  {current.film.year}
-                  {current.film.director ? ` · ${current.film.director}` : ""}
-                  {current.film.runtime ? ` · ${current.film.runtime} min` : ""}
-                </p>
-                {pitch && (
-                  <blockquote className="mt-4 max-w-lg border-l-2 border-signal pl-4">
-                    <p className="text-sm italic leading-relaxed text-ink-soft">
-                      &ldquo;{pitch}&rdquo;
-                    </p>
-                    <p className="label-eyebrow mt-1.5">
-                      The producer&apos;s pitch · curator anonymous
-                    </p>
-                  </blockquote>
-                )}
-
-                <div className="mt-7">
-                  <p className="label-eyebrow">{DEADLINE_LABEL[phase]}</p>
-                  <div className="mt-2">
-                    <Countdown deadline={deadline} expiredLabel="Just closed" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* The single action this phase asks for. */}
-            <div className="border-t border-rule px-6 py-6">
-              {phase === "VIEWING" && (
-                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-rule pb-6">
-                  <div>
-                    <p className="text-sm font-medium uppercase tracking-tight">
-                      {isWatched ? "Watched" : "Watch it before Sunday midnight"}
-                    </p>
-                    <p className="mt-1 text-xs text-ink-faint">
-                      Write it up any time before the window shuts — voting on
-                      reviews opens Monday.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => onWatch(!isWatched)}
-                    disabled={pending}
-                    className={`px-7 py-3.5 text-sm font-medium uppercase tracking-[0.14em] transition-colors disabled:opacity-50 ${
-                      isWatched
-                        ? "border border-ink text-ink hover:bg-ink hover:text-paper"
-                        : "bg-signal text-paper hover:bg-ink"
-                    }`}
-                  >
-                    {isWatched ? "Watched ✓" : "Mark watched"}
-                  </button>
-                </div>
-              )}
-
-              {(phase === "VIEWING" || phase === "REVIEWING") && (
-                <div className={phase === "VIEWING" ? "pt-6" : ""}>
-                  <div className="flex flex-wrap items-baseline justify-between gap-3">
-                    <p className="text-sm font-medium uppercase tracking-tight">
-                      Your review
-                    </p>
-                    <p
-                      className={`label-eyebrow ${
-                        reviewText.length > REVIEW_MAX_CHARS ? "text-signal" : ""
-                      }`}
-                    >
-                      {reviewText.length} / {REVIEW_MAX_CHARS}
-                    </p>
-                  </div>
-                  <textarea
-                    value={reviewText}
-                    onChange={(e) => setReviewText(e.target.value)}
-                    maxLength={REVIEW_MAX_CHARS}
-                    rows={3}
-                    placeholder="Two hundred characters. Nobody sees your name until voting closes."
-                    className="mt-3 w-full resize-none border border-rule bg-paper px-4 py-3 text-sm leading-relaxed outline-none focus:border-ink"
-                  />
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-xs text-ink-faint">
-                      Anonymous until the voting window shuts. Editable until
-                      voting opens Monday.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={onSaveReview}
-                      disabled={pending || !reviewText.trim()}
-                      className="bg-signal px-7 py-3 text-sm font-medium uppercase tracking-[0.14em] text-paper transition-colors hover:bg-ink disabled:opacity-50"
-                    >
-                      {saved ? "Filed ✓" : "File review"}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {phase === "CRITICS_VOTING" && (
-                <div>
-                  <div className="flex flex-wrap items-baseline justify-between gap-3">
-                    <p className="text-sm font-medium uppercase tracking-tight">
-                      Spend your upvotes — {UPVOTES_PER_FILM} insightful,{" "}
-                      {UPVOTES_PER_FILM} funniest
-                    </p>
-                    <p
-                      className={`label-eyebrow ${remaining.insightful + remaining.funniest > 0 ? "text-signal" : ""}`}
-                    >
-                      {remaining.insightful} insightful · {remaining.funniest}{" "}
-                      funniest left
-                    </p>
-                  </div>
-                  <p className="mt-1 text-xs text-ink-faint">
-                    Spend all {UPVOTES_PER_FILM} or your own review stops being
-                    eligible to receive any.
-                  </p>
-
-                  <ul className="mt-5 grid gap-px border border-rule bg-rule">
-                    {reviews.map((r) => (
-                      <li
-                        key={r.id}
-                        className="flex items-start gap-4 bg-paper px-4 py-4"
-                      >
-                        <p className="min-w-0 flex-1 text-sm leading-relaxed">
-                          {r.body}
-                          {r.mine && (
-                            <span className="ml-2 text-xs text-ink-faint">
-                              (yours)
-                            </span>
-                          )}
-                        </p>
-                        {!r.mine && (
-                          <span className="flex shrink-0 flex-wrap items-center gap-2">
-                            <AllocateControl
-                              label="Insightful"
-                              count={r.myInsightful}
-                              canAdd={!pending && remaining.insightful > 0}
-                              onAdd={() => onAllocate(r.id, "insightful", true)}
-                              onRemove={() =>
-                                onAllocate(r.id, "insightful", false)
-                              }
-                            />
-                            <AllocateControl
-                              label="Funniest"
-                              count={r.myFunniest}
-                              canAdd={!pending && remaining.funniest > 0}
-                              onAdd={() => onAllocate(r.id, "funniest", true)}
-                              onRemove={() =>
-                                onAllocate(r.id, "funniest", false)
-                              }
-                            />
-                            <ReportButton
-                              reported={r.reportedByMe}
-                              onReport={() => onReport(r.id)}
-                            />
-                          </span>
-                        )}
-                      </li>
-                    ))}
-                    {reviews.length === 0 && (
-                      <li className="bg-paper px-4 py-6 text-sm text-ink-faint">
-                        No reviews were filed for this one.
-                      </li>
-                    )}
-                  </ul>
-                </div>
-              )}
-
-              {phase === "UPCOMING" && (
-                <p className="text-sm text-ink-soft">
-                  This film opens when the one before it closes.
-                </p>
-              )}
+            <div className="mt-4 flex snap-x snap-mandatory gap-6 overflow-x-auto pb-2">
+              {lineup.map((entry, i) => (
+                <FilmSlide
+                  key={entry.film.id}
+                  slideRef={(el) => {
+                    slideRefs.current[i] = el;
+                  }}
+                  entry={entry}
+                  isCurrent={current?.film.id === entry.film.id}
+                  guildId={guildId}
+                  guildName={guildName}
+                  festivalNumber={festivalNumber}
+                  lineupLength={lineup.length}
+                  isWatched={watched.has(entry.film.id)}
+                  pitch={pitch}
+                  thread={threadsByFilmId[entry.film.id] ?? []}
+                  liveReviews={reviews}
+                  reviewText={reviewText}
+                  onReviewTextChange={setReviewText}
+                  onSaveReview={onSaveReview}
+                  saved={saved}
+                  pending={pending}
+                  onWatch={onWatch}
+                  remaining={remaining}
+                  onAllocate={onAllocate}
+                  onReport={onReport}
+                />
+              ))}
             </div>
           </section>
         ) : drawnButNotOpen > 0 ? (
@@ -465,27 +355,6 @@ export function Dashboard({
               programmed and in order. There is no clock yet — the first film
               opens the moment your president opens the festival, and you will
               have the full window from then.
-            </p>
-          </section>
-        ) : notYetOpen(lineup) ? (
-          <section className="border border-ink bg-paper-raised px-6 py-10">
-            <p className="label-eyebrow text-signal">Ready to open</p>
-            <p className="mt-3 text-3xl font-medium uppercase leading-tight tracking-tight">
-              The lineup is drawn
-            </p>
-            <p className="mt-3 max-w-lg text-sm leading-relaxed text-ink-soft">
-              {lineup.length} film{lineup.length === 1 ? "" : "s"} are
-              programmed and in order. Nothing is screening yet — the first
-              film opens the moment your president opens the festival, and the
-              clock starts from then.
-            </p>
-          </section>
-        ) : allClosed(lineup) ? (
-          <section className="border border-rule bg-paper-raised px-6 py-10">
-            <p className="label-eyebrow">The festival has screened</p>
-            <p className="mt-3 max-w-lg text-sm leading-relaxed text-ink-soft">
-              Every film in the lineup has closed. The ceremony is next — your
-              president opens the ballot when they&apos;re ready.
             </p>
           </section>
         ) : (
@@ -506,54 +375,57 @@ export function Dashboard({
         )}
 
         {/* ── The lineup, and where the festival has got to ──────────────── */}
-        <section>
-          <div className="flex items-baseline justify-between border-b border-rule pb-2">
-            <h2 className="label-eyebrow">The lineup</h2>
-            <p className="label-eyebrow">
-              {progress} of {lineup.length} closed
-            </p>
-          </div>
+        {lineup.length > 0 && (
+          <section>
+            <div className="flex items-baseline justify-between border-b border-rule pb-2">
+              <h2 className="label-eyebrow">The lineup</h2>
+              <p className="label-eyebrow">
+                {progress} of {lineup.length} closed
+              </p>
+            </div>
 
-          <ul className="mt-4 grid gap-px border border-rule bg-rule">
-            {lineup.map((entry) => {
-              const p = phaseOf(entry);
-              const isCurrent = current?.film.id === entry.film.id;
-              return (
-                <li key={entry.film.id}>
-                  <Link
-                    href={`/guild/${guildId}/film/${entry.film.id}`}
-                    className={`flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-5 py-4 transition-colors ${
-                      isCurrent
-                        ? "bg-paper-raised hover:bg-paper"
-                        : "bg-paper hover:bg-paper-raised"
-                    }`}
-                  >
-                    <span className="flex min-w-0 items-baseline gap-3">
-                      <span className="label-eyebrow tabular-nums">
-                        {String(entry.position).padStart(2, "0")}
+            <ul className="mt-4 grid gap-px border border-rule bg-rule">
+              {lineup.map((entry, i) => {
+                const p = phaseOf(entry);
+                const isCurrent = current?.film.id === entry.film.id;
+                return (
+                  <li key={entry.film.id}>
+                    <button
+                      type="button"
+                      onClick={() => scrollToIndex(i)}
+                      className={`flex w-full flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-5 py-4 text-left transition-colors ${
+                        isCurrent
+                          ? "bg-paper-raised hover:bg-paper"
+                          : "bg-paper hover:bg-paper-raised"
+                      } ${i === activeIndex ? "ring-1 ring-inset ring-ink" : ""}`}
+                    >
+                      <span className="flex min-w-0 items-baseline gap-3">
+                        <span className="label-eyebrow tabular-nums">
+                          {String(entry.position).padStart(2, "0")}
+                        </span>
+                        <span
+                          className={`truncate text-sm font-medium tracking-tight ${
+                            p === "UPCOMING" ? "text-ink-faint" : ""
+                          }`}
+                        >
+                          {entry.film.title}
+                        </span>
+                        {watched.has(entry.film.id) && (
+                          <span className="label-eyebrow">Watched</span>
+                        )}
                       </span>
                       <span
-                        className={`truncate text-sm font-medium tracking-tight ${
-                          p === "UPCOMING" ? "text-ink-faint" : ""
-                        }`}
+                        className={`label-eyebrow ${isCurrent ? "text-signal" : ""}`}
                       >
-                        {entry.film.title}
+                        {PHASE_LABELS[p]}
                       </span>
-                      {watched.has(entry.film.id) && (
-                        <span className="label-eyebrow">Watched</span>
-                      )}
-                    </span>
-                    <span
-                      className={`label-eyebrow ${isCurrent ? "text-signal" : ""}`}
-                    >
-                      {PHASE_LABELS[p]}
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
       </div>
 
       {/* ── Standing, and what is coming ──────────────────────────────────── */}
@@ -634,12 +506,13 @@ export function Dashboard({
             <h2 className="label-eyebrow border-b border-rule pb-2">
               Coming next
             </h2>
-            <Link
-              href={`/guild/${guildId}/film/${next.film.id}`}
-              className="mt-4 block text-lg font-medium uppercase leading-tight tracking-tight transition-colors hover:text-signal"
+            <button
+              type="button"
+              onClick={() => scrollToFilm(next.film.id)}
+              className="mt-4 block text-left text-lg font-medium uppercase leading-tight tracking-tight transition-colors hover:text-signal"
             >
               {next.film.title}
-            </Link>
+            </button>
             <p className="mt-1 text-xs text-ink-faint">
               Film {next.position} of {lineup.length}
             </p>
@@ -681,6 +554,305 @@ const DEADLINE_LABEL: Record<ScreeningPhase, string> = {
   CRITICS_VOTING: "Vote within",
   CLOSED: "Closed",
 };
+
+/**
+ * One film's whole page, as a carousel slide. The current film gets the
+ * live action area (watch, write, vote); a closed film gets its finished
+ * review thread, tallies and authors revealed; an upcoming film gets a
+ * look-ahead with nothing to do yet.
+ */
+function FilmSlide({
+  slideRef,
+  entry,
+  isCurrent,
+  guildId,
+  guildName,
+  festivalNumber,
+  lineupLength,
+  isWatched,
+  pitch,
+  thread,
+  liveReviews,
+  reviewText,
+  onReviewTextChange,
+  onSaveReview,
+  saved,
+  pending,
+  onWatch,
+  remaining,
+  onAllocate,
+  onReport,
+}: {
+  slideRef: (el: HTMLDivElement | null) => void;
+  entry: LineupFilm;
+  isCurrent: boolean;
+  guildId: string;
+  guildName: string;
+  festivalNumber: number;
+  lineupLength: number;
+  isWatched: boolean;
+  pitch: string;
+  /** This film's finished thread — used for closed films, ignored for the current one. */
+  thread: ThreadReview[];
+  /** The current film's live, locally-mutated thread — used only when isCurrent. */
+  liveReviews: ThreadReview[];
+  reviewText: string;
+  onReviewTextChange: (value: string) => void;
+  onSaveReview: () => void;
+  saved: boolean;
+  pending: boolean;
+  onWatch: (next: boolean) => void;
+  remaining: Record<UpvoteKind, number>;
+  onAllocate: (reviewId: string, kind: UpvoteKind, add: boolean) => void;
+  onReport: (reviewId: string) => void;
+}) {
+  const phase = phaseOf(entry);
+  const deadline = phaseDeadline(entry);
+
+  return (
+    <div
+      ref={slideRef}
+      className="w-full shrink-0 snap-start border border-ink bg-paper-raised"
+    >
+      <div className="flex flex-wrap items-baseline justify-between gap-4 border-b border-rule px-6 py-4">
+        <p className={`label-eyebrow ${isCurrent ? "text-signal" : ""}`}>
+          {PHASE_LABELS[phase]} · Film {entry.position} of {lineupLength}
+        </p>
+        <div className="flex items-baseline gap-4">
+          <p className="label-eyebrow">
+            {guildName} · Festival {festivalNumber}
+          </p>
+          <Link
+            href={`/guild/${guildId}/film/${entry.film.id}`}
+            className="label-eyebrow underline decoration-rule underline-offset-4 hover:text-signal"
+          >
+            Full page ↗
+          </Link>
+        </div>
+      </div>
+
+      <div className="grid gap-8 px-6 py-8 sm:grid-cols-[128px_1fr]">
+        <div className="w-32">
+          <FilmPoster film={entry.film} />
+        </div>
+
+        <div className="min-w-0">
+          <h2 className="break-words text-3xl font-medium uppercase leading-none tracking-tight sm:text-4xl">
+            {entry.film.title}
+          </h2>
+          <p className="mt-2 text-sm text-ink-faint">
+            {entry.film.year}
+            {entry.film.director ? ` · ${entry.film.director}` : ""}
+            {entry.film.runtime ? ` · ${entry.film.runtime} min` : ""}
+          </p>
+
+          {isCurrent && pitch && (
+            <blockquote className="mt-4 max-w-lg border-l-2 border-signal pl-4">
+              <p className="text-sm italic leading-relaxed text-ink-soft">
+                &ldquo;{pitch}&rdquo;
+              </p>
+              <p className="label-eyebrow mt-1.5">
+                The producer&apos;s pitch · curator anonymous
+              </p>
+            </blockquote>
+          )}
+
+          {!isCurrent && entry.film.overview && (
+            <p className="mt-4 max-w-lg text-sm leading-relaxed text-ink-soft">
+              {entry.film.overview}
+            </p>
+          )}
+
+          {deadline && (
+            <div className="mt-7">
+              <p className="label-eyebrow">{DEADLINE_LABEL[phase]}</p>
+              <div className="mt-2">
+                <Countdown deadline={deadline} expiredLabel="Just closed" />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* The single action this phase asks for. */}
+      <div className="border-t border-rule px-6 py-6">
+        {isCurrent && phase === "VIEWING" && (
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-rule pb-6">
+            <div>
+              <p className="text-sm font-medium uppercase tracking-tight">
+                {isWatched ? "Watched" : "Watch it before Sunday midnight"}
+              </p>
+              <p className="mt-1 text-xs text-ink-faint">
+                Write it up any time before the window shuts — voting on
+                reviews opens Monday.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onWatch(!isWatched)}
+              disabled={pending}
+              className={`px-7 py-3.5 text-sm font-medium uppercase tracking-[0.14em] transition-colors disabled:opacity-50 ${
+                isWatched
+                  ? "border border-ink text-ink hover:bg-ink hover:text-paper"
+                  : "bg-signal text-paper hover:bg-ink"
+              }`}
+            >
+              {isWatched ? "Watched ✓" : "Mark watched"}
+            </button>
+          </div>
+        )}
+
+        {isCurrent && (phase === "VIEWING" || phase === "REVIEWING") && (
+          <div className={phase === "VIEWING" ? "pt-6" : ""}>
+            <div className="flex flex-wrap items-baseline justify-between gap-3">
+              <p className="text-sm font-medium uppercase tracking-tight">
+                Your review
+              </p>
+              <p
+                className={`label-eyebrow ${
+                  reviewText.length > REVIEW_MAX_CHARS ? "text-signal" : ""
+                }`}
+              >
+                {reviewText.length} / {REVIEW_MAX_CHARS}
+              </p>
+            </div>
+            <textarea
+              value={reviewText}
+              onChange={(e) => onReviewTextChange(e.target.value)}
+              maxLength={REVIEW_MAX_CHARS}
+              rows={3}
+              placeholder="Two hundred characters. Nobody sees your name until voting closes."
+              className="mt-3 w-full resize-none border border-rule bg-paper px-4 py-3 text-sm leading-relaxed outline-none focus:border-ink"
+            />
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs text-ink-faint">
+                Anonymous until the voting window shuts. Editable until
+                voting opens Monday.
+              </p>
+              <button
+                type="button"
+                onClick={onSaveReview}
+                disabled={pending || !reviewText.trim()}
+                className="bg-signal px-7 py-3 text-sm font-medium uppercase tracking-[0.14em] text-paper transition-colors hover:bg-ink disabled:opacity-50"
+              >
+                {saved ? "Filed ✓" : "File review"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {isCurrent && phase === "CRITICS_VOTING" && (
+          <div>
+            <div className="flex flex-wrap items-baseline justify-between gap-3">
+              <p className="text-sm font-medium uppercase tracking-tight">
+                Spend your upvotes — {UPVOTES_PER_FILM} insightful,{" "}
+                {UPVOTES_PER_FILM} funniest
+              </p>
+              <p
+                className={`label-eyebrow ${remaining.insightful + remaining.funniest > 0 ? "text-signal" : ""}`}
+              >
+                {remaining.insightful} insightful · {remaining.funniest}{" "}
+                funniest left
+              </p>
+            </div>
+            <p className="mt-1 text-xs text-ink-faint">
+              Spend all {UPVOTES_PER_FILM} or your own review stops being
+              eligible to receive any.
+            </p>
+
+            <ul className="mt-5 grid gap-px border border-rule bg-rule">
+              {liveReviews.map((r) => (
+                <li
+                  key={r.id}
+                  className="flex items-start gap-4 bg-paper px-4 py-4"
+                >
+                  <p className="min-w-0 flex-1 text-sm leading-relaxed">
+                    {r.body}
+                    {r.mine && (
+                      <span className="ml-2 text-xs text-ink-faint">
+                        (yours)
+                      </span>
+                    )}
+                  </p>
+                  {!r.mine && (
+                    <span className="flex shrink-0 flex-wrap items-center gap-2">
+                      <AllocateControl
+                        label="Insightful"
+                        count={r.myInsightful}
+                        canAdd={!pending && remaining.insightful > 0}
+                        onAdd={() => onAllocate(r.id, "insightful", true)}
+                        onRemove={() =>
+                          onAllocate(r.id, "insightful", false)
+                        }
+                      />
+                      <AllocateControl
+                        label="Funniest"
+                        count={r.myFunniest}
+                        canAdd={!pending && remaining.funniest > 0}
+                        onAdd={() => onAllocate(r.id, "funniest", true)}
+                        onRemove={() => onAllocate(r.id, "funniest", false)}
+                      />
+                      <ReportButton
+                        reported={r.reportedByMe}
+                        onReport={() => onReport(r.id)}
+                      />
+                    </span>
+                  )}
+                </li>
+              ))}
+              {liveReviews.length === 0 && (
+                <li className="bg-paper px-4 py-6 text-sm text-ink-faint">
+                  No reviews were filed for this one.
+                </li>
+              )}
+            </ul>
+          </div>
+        )}
+
+        {phase === "UPCOMING" && (
+          <p className="text-sm text-ink-soft">
+            {entry.position === 1
+              ? "Reviewing opens once this film's window starts."
+              : "This film opens when the one before it closes."}
+          </p>
+        )}
+
+        {phase === "CLOSED" && (
+          <div>
+            <p className="text-sm font-medium uppercase tracking-tight">
+              The reviews
+            </p>
+            <ul className="mt-4 grid gap-px border border-rule bg-rule">
+              {thread.map((r) => (
+                <li key={r.id} className="bg-paper px-4 py-4">
+                  <div className="flex flex-wrap items-baseline justify-between gap-3">
+                    <span className="text-sm font-medium">
+                      {r.authorName ?? "Member"}
+                      {r.mine && (
+                        <span className="ml-2 text-xs font-normal text-ink-faint">
+                          (you)
+                        </span>
+                      )}
+                    </span>
+                    <span className="shrink-0 text-xs text-ink-faint">
+                      {r.insightful} insightful · {r.funniest} funniest
+                    </span>
+                  </div>
+                  <p className="mt-1.5 text-sm leading-relaxed">{r.body}</p>
+                </li>
+              ))}
+              {thread.length === 0 && (
+                <li className="bg-paper px-4 py-6 text-sm text-ink-faint">
+                  No reviews were filed for this one.
+                </li>
+              )}
+            </ul>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 /**
  * Two clicks to flag — the first arms it, the second sends. No dialog, so it

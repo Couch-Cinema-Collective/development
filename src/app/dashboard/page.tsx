@@ -4,7 +4,13 @@ import { redirect } from "next/navigation";
 import { Dashboard, type ThreadReview } from "@/components/Dashboard";
 import { GuildSwitcher } from "@/components/GuildSwitcher";
 import { getCurrentFestival, getUserMemberships } from "@/lib/guilds";
-import { currentFilm, nextFilm, toLineup, type LineupRow } from "@/lib/lineup";
+import {
+  currentFilm,
+  nextFilm,
+  phaseOf,
+  toLineup,
+  type LineupRow,
+} from "@/lib/lineup";
 import { createClient } from "@/lib/supabase/server";
 import { isCurator, type GuildRole } from "@/lib/types";
 
@@ -108,21 +114,34 @@ export default async function DashboardPage({
   const current = currentFilm(lineup);
   const next = nextFilm(lineup);
 
-  // The review thread, upvote budgets, and the curator's anonymous pitch
-  // only matter for the film that is on.
-  const [{ data: threadRows }, { data: budgetRows }, { data: pitch }] = current
-    ? await Promise.all([
-        supabase.rpc("film_reviews_v2", {
-          fid: festival.id,
-          tid: current.film.id,
+  // Upvote budgets and the curator's anonymous pitch only matter for the
+  // film that is on. Review threads matter for every film the carousel can
+  // show — current plus anything already closed; film_reviews_v2 itself
+  // returns nothing for a film still in VIEWING/REVIEWING, so asking for
+  // those too is harmless.
+  const withThreads = lineup.filter((f) => phaseOf(f) !== "UPCOMING");
+
+  const [{ data: budgetRows }, { data: pitch }, threadResults] =
+    await Promise.all([
+      current
+        ? supabase.rpc("my_upvote_budgets", {
+            fid: festival.id,
+            tid: current.film.id,
+          })
+        : Promise.resolve({ data: [] }),
+      current
+        ? supabase.rpc("film_pitch", { fid: festival.id, tid: current.film.id })
+        : Promise.resolve({ data: null }),
+      Promise.all(
+        withThreads.map(async (f) => {
+          const { data } = await supabase.rpc("film_reviews_v2", {
+            fid: festival.id,
+            tid: f.film.id,
+          });
+          return { tmdbId: f.film.id, rows: (data ?? []) as ReviewRow[] };
         }),
-        supabase.rpc("my_upvote_budgets", {
-          fid: festival.id,
-          tid: current.film.id,
-        }),
-        supabase.rpc("film_pitch", { fid: festival.id, tid: current.film.id }),
-      ])
-    : [{ data: [] }, { data: [] }, { data: null }];
+      ),
+    ]);
 
   const spentByKind = new Map(
     ((budgetRows ?? []) as { kind: string; spent: number }[]).map((b) => [
@@ -159,11 +178,20 @@ export default async function DashboardPage({
   const reportedByMe = new Set((myReportRows ?? []).map((r) => r.review_id));
   const blocked = new Set((blockRows ?? []).map((b) => b.blocked_id));
 
-  const rows = ((threadRows ?? []) as ReviewRow[]).filter(
-    (r) => r.mine || !r.user_id || !blocked.has(r.user_id),
-  );
+  // Per film, drop reviews from members this viewer has blocked (their own
+  // and any not-yet-anonymous review always stay visible).
+  const filteredByFilm = threadResults.map(({ tmdbId, rows }) => ({
+    tmdbId,
+    rows: rows.filter((r) => r.mine || !r.user_id || !blocked.has(r.user_id)),
+  }));
+
   const authorIds = [
-    ...new Set(rows.map((r) => r.user_id).filter((id): id is string => !!id)),
+    ...new Set(
+      filteredByFilm
+        .flatMap(({ rows }) => rows)
+        .map((r) => r.user_id)
+        .filter((id): id is string => !!id),
+    ),
   ];
   const { data: profiles } = authorIds.length
     ? await supabase.from("profiles").select("id, full_name").in("id", authorIds)
@@ -175,19 +203,25 @@ export default async function DashboardPage({
   const myReviewBody =
     (myReviews ?? []).find((r) => r.tmdb_id === current?.film.id)?.body ?? "";
 
-  const thread: ThreadReview[] = rows.map((r) => ({
-    id: r.id,
-    authorName: r.user_id ? (nameById.get(r.user_id) ?? "Member") : null,
-    body: r.body,
-    eligible: r.eligible,
-    insightful: Number(r.insightful),
-    funniest: Number(r.funniest),
-    myInsightful: Number(r.my_insightful),
-    myFunniest: Number(r.my_funniest),
-    // The server says so — before the reveal there is no id to compare.
-    mine: r.mine,
-    reportedByMe: reportedByMe.has(r.id),
-  }));
+  const toThread = (rows: ReviewRow[]): ThreadReview[] =>
+    rows.map((r) => ({
+      id: r.id,
+      authorName: r.user_id ? (nameById.get(r.user_id) ?? "Member") : null,
+      body: r.body,
+      eligible: r.eligible,
+      insightful: Number(r.insightful),
+      funniest: Number(r.funniest),
+      myInsightful: Number(r.my_insightful),
+      myFunniest: Number(r.my_funniest),
+      // The server says so — before the reveal there is no id to compare.
+      mine: r.mine,
+      reportedByMe: reportedByMe.has(r.id),
+    }));
+
+  const threadsByFilmId: Record<number, ThreadReview[]> = {};
+  for (const { tmdbId, rows } of filteredByFilm) {
+    threadsByFilmId[tmdbId] = toThread(rows);
+  }
 
   const standingRows = (standings ?? []) as {
     user_id: string;
@@ -262,7 +296,7 @@ export default async function DashboardPage({
           current={current}
           next={next}
           watchedIds={(watchedRows ?? []).map((w) => w.tmdb_id)}
-          thread={thread}
+          threadsByFilmId={threadsByFilmId}
           myReview={myReviewBody}
           insightfulSpent={spentByKind.get("insightful") ?? 0}
           funniestSpent={spentByKind.get("funniest") ?? 0}
