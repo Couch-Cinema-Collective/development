@@ -1,7 +1,7 @@
 import "server-only";
 
 import { getUserMemberships } from "@/lib/guilds";
-import { currentFilm, phaseDeadline, phaseOf, toLineup, type LineupRow } from "@/lib/lineup";
+import { phaseDeadline, phaseOf, toLineup, type LineupRow } from "@/lib/lineup";
 import { createClient } from "@/lib/supabase/server";
 import type { LineupFilm, ScreeningPhase } from "@/lib/types";
 
@@ -18,11 +18,11 @@ export interface LiveScreening {
 }
 
 /**
- * The film currently on — viewing, reviewing, or up for critics' vote — in
- * every guild the member belongs to. One entry per guild, guilds with
- * nothing open right now excluded. Drives the "what do I owe" carousel on
- * the welcome page, across guilds rather than the one at a time the
- * dashboard shows.
+ * Every film still ahead of the credits — currently screening, reviewing, or
+ * up for critics' vote, plus whatever hasn't opened yet — in every guild the
+ * member belongs to. Closed films are dropped; guilds with nothing left open
+ * are excluded entirely. Drives the "what's playing" carousel on the welcome
+ * page, across guilds rather than the one at a time the dashboard shows.
  */
 export async function getLiveScreenings(): Promise<LiveScreening[]> {
   const memberships = await getUserMemberships();
@@ -67,20 +67,24 @@ export async function getLiveScreenings(): Promise<LiveScreening[]> {
   const screenings: LiveScreening[] = [];
   for (const [guildId, festival] of festivalByGuild.entries()) {
     const lineup = toLineup(rowsByFestival.get(festival.id) ?? []);
-    const current = currentFilm(lineup);
-    if (!current) continue;
+    // Position order, which is also screening order — the film that's on
+    // (if any) leads, followed by whatever's coming next.
+    for (const film of lineup) {
+      const phase = phaseOf(film);
+      if (phase === "CLOSED") continue;
 
-    const deadline = phaseDeadline(current);
-    if (!deadline) continue;
+      const deadline = phaseDeadline(film);
+      if (!deadline) continue;
 
-    screenings.push({
-      guildId,
-      guildName: nameByGuild.get(guildId) ?? "Unnamed",
-      festivalNumber: festival.number,
-      film: current.film,
-      phase: phaseOf(current),
-      deadline,
-    });
+      screenings.push({
+        guildId,
+        guildName: nameByGuild.get(guildId) ?? "Unnamed",
+        festivalNumber: festival.number,
+        film: film.film,
+        phase,
+        deadline,
+      });
+    }
   }
 
   return screenings;

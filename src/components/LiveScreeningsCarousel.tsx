@@ -17,7 +17,7 @@ export function LiveScreeningsCarousel({ items }: { items: LiveScreening[] }) {
     <div className="-mx-6 flex snap-x snap-mandatory gap-4 overflow-x-auto px-6 pb-2">
       {items.map((item) => (
         <Link
-          key={item.guildId}
+          key={`${item.guildId}-${item.film.id}`}
           href={`/dashboard?guild=${item.guildId}`}
           className="group flex w-64 shrink-0 snap-start flex-col border border-ink bg-paper-raised transition-colors hover:border-signal"
         >
