@@ -23,6 +23,8 @@ export async function castVote(input: {
     character: string;
     profilePath: string | null;
   };
+  /** Best Review votes name the review itself. */
+  reviewId?: string;
 }): Promise<VoteResult> {
   const supabase = await createClient();
   const {
@@ -48,6 +50,7 @@ export async function castVote(input: {
       tmdb_id: input.tmdbId,
       person_id: input.person?.id ?? null,
       person: input.person ?? null,
+      review_id: input.reviewId ?? null,
     },
     { onConflict: "festival_id,user_id,award_id" },
   );

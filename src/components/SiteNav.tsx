@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { isNative } from "@/lib/native";
+
 /**
  * Header navigation.
  *
@@ -27,6 +29,12 @@ export function SiteNav({
   guildSlot?: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  // After mount so server and client render the same first frame. In the iOS
+  // shell the Film Collection stays web-only: the app is the festival, the
+  // wiki is the site's front door.
+  const [native, setNative] = useState(false);
+  useEffect(() => setNative(isNative()), []);
+  const shown = native ? items.filter((i) => i.href !== "/wiki") : items;
   const pathname = usePathname();
 
   // Navigating should always close the panel, including on back/forward.
@@ -36,7 +44,7 @@ export function SiteNav({
     <>
       {/* Inline, tablet and up */}
       <nav className="hidden items-center gap-7 sm:flex">
-        {items.map((item) => (
+        {shown.map((item) => (
           <Link
             key={item.href}
             href={item.href}
@@ -76,7 +84,7 @@ export function SiteNav({
           className="absolute inset-x-0 top-full z-40 border-b border-rule bg-paper-raised sm:hidden"
         >
           <nav className="flex flex-col px-6 py-2">
-            {items.map((item) => (
+            {shown.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}

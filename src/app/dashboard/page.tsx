@@ -72,6 +72,7 @@ export default async function DashboardPage({
     { data: watchedRows },
     { data: myReviews },
     { data: standings },
+    { data: misses },
     { data: membership },
   ] = await Promise.all([
     supabase
@@ -90,7 +91,8 @@ export default async function DashboardPage({
       .select("tmdb_id, body")
       .eq("festival_id", festival.id)
       .eq("user_id", user.id),
-    supabase.rpc("critic_standings", { fid: festival.id }),
+    supabase.rpc("critic_standings_v2", { fid: festival.id }),
+    supabase.rpc("festival_misses", { fid: festival.id }),
     supabase
       .from("guild_members")
       .select("role")
@@ -106,18 +108,28 @@ export default async function DashboardPage({
   const current = currentFilm(lineup);
   const next = nextFilm(lineup);
 
-  // The review thread and upvote budget only matter for the film that is on.
-  const [{ data: threadRows }, { data: budget }] = current
+  // The review thread, upvote budgets, and the curator's anonymous pitch
+  // only matter for the film that is on.
+  const [{ data: threadRows }, { data: budgetRows }, { data: pitch }] = current
     ? await Promise.all([
-        supabase.rpc("film_reviews", {
+        supabase.rpc("film_reviews_v2", {
           fid: festival.id,
           tid: current.film.id,
         }),
-        supabase
-          .rpc("my_upvote_budget", { fid: festival.id, tid: current.film.id })
-          .maybeSingle(),
+        supabase.rpc("my_upvote_budgets", {
+          fid: festival.id,
+          tid: current.film.id,
+        }),
+        supabase.rpc("film_pitch", { fid: festival.id, tid: current.film.id }),
       ])
-    : [{ data: [] }, { data: null }];
+    : [{ data: [] }, { data: [] }, { data: null }];
+
+  const spentByKind = new Map(
+    ((budgetRows ?? []) as { kind: string; spent: number }[]).map((b) => [
+      b.kind,
+      b.spent,
+    ]),
+  );
 
   // Authors are only ever returned once a film's window has shut.
   type ReviewRow = {
@@ -125,8 +137,10 @@ export default async function DashboardPage({
     user_id: string | null;
     body: string;
     eligible: boolean;
-    upvotes: number;
-    upvoted_by_me: boolean;
+    insightful: number;
+    funniest: number;
+    my_insightful: number;
+    my_funniest: number;
     mine: boolean;
   };
   // Flags the member has already filed, and members they've blocked. A block
@@ -166,16 +180,45 @@ export default async function DashboardPage({
     authorName: r.user_id ? (nameById.get(r.user_id) ?? "Member") : null,
     body: r.body,
     eligible: r.eligible,
-    upvotes: Number(r.upvotes),
-    upvotedByMe: r.upvoted_by_me,
+    insightful: Number(r.insightful),
+    funniest: Number(r.funniest),
+    myInsightful: Number(r.my_insightful),
+    myFunniest: Number(r.my_funniest),
     // The server says so — before the reveal there is no id to compare.
     mine: r.mine,
     reportedByMe: reportedByMe.has(r.id),
   }));
 
-  const myStanding = (
-    (standings ?? []) as { user_id: string; upvotes: number }[]
-  ).find((s) => s.user_id === user.id);
+  const standingRows = (standings ?? []) as {
+    user_id: string;
+    points: number;
+    reviews_written: number;
+  }[];
+  const myStanding = standingRows.find((s) => s.user_id === user.id);
+
+  // Names for the board — top eight, plus wherever the member sits.
+  const boardRows = standingRows.slice(0, 8);
+  const boardIds = [...new Set(boardRows.map((b) => b.user_id))];
+  const { data: boardProfiles } = boardIds.length
+    ? await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", boardIds)
+    : { data: [] };
+  const boardNameById = new Map(
+    (boardProfiles ?? []).map((b) => [b.id, b.full_name || "Member"]),
+  );
+  const leaderboard = boardRows.map((b) => ({
+    name: boardNameById.get(b.user_id) ?? "Member",
+    points: Number(b.points),
+    me: b.user_id === user.id,
+  }));
+
+  const myMisses = Number(
+    ((misses ?? []) as { user_id: string; missed: number }[]).find(
+      (m) => m.user_id === user.id,
+    )?.missed ?? 0,
+  );
 
   // Festival awards this member's nominations have already taken.
   const { data: wins } = await supabase
@@ -221,8 +264,12 @@ export default async function DashboardPage({
           watchedIds={(watchedRows ?? []).map((w) => w.tmdb_id)}
           thread={thread}
           myReview={myReviewBody}
-          upvotesSpent={(budget as { spent: number } | null)?.spent ?? 0}
-          upvotesEarned={Number(myStanding?.upvotes ?? 0)}
+          insightfulSpent={spentByKind.get("insightful") ?? 0}
+          funniestSpent={spentByKind.get("funniest") ?? 0}
+          pitch={typeof pitch === "string" ? pitch : ""}
+          upvotesEarned={Number(myStanding?.points ?? 0)}
+          leaderboard={leaderboard}
+          myMisses={myMisses}
           reviewsFiled={(myReviews ?? []).length}
           festivalAwards={(wins ?? []).length}
           isCurator={isCurator(role)}

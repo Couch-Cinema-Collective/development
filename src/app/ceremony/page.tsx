@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Ceremony } from "@/components/Ceremony";
+import { Countdown } from "@/components/Countdown";
 import { getCurrentFestival } from "@/lib/guilds";
 import { ceremonyOrder } from "@/lib/mock/awards";
 import { createClient } from "@/lib/supabase/server";
@@ -44,6 +45,45 @@ export default async function CeremonyPage({
     );
   }
 
+  // The reveal gate: results stay sealed (and RLS returns nothing) until
+  // the moment the president scheduled. The guild gets the countdown; the
+  // president sees straight through to check the envelope.
+  const [{ data: festivalRow }, { data: myMembership }] = await Promise.all([
+    supabase
+      .from("festivals")
+      .select("ceremony_at")
+      .eq("id", festival.id)
+      .maybeSingle(),
+    supabase
+      .from("guild_members")
+      .select("role")
+      .eq("guild_id", festival.guildId)
+      .eq("user_id", user.id)
+      .maybeSingle(),
+  ]);
+  const ceremonyAt = festivalRow?.ceremony_at ?? null;
+  const isPresident = myMembership?.role === "president";
+  if (ceremonyAt && new Date(ceremonyAt) > new Date() && !isPresident) {
+    return (
+      <main className="pattern-signal-dark flex min-h-screen items-center px-6">
+        <div className="mx-auto max-w-2xl py-16 text-center">
+          <p className="label-eyebrow text-paper/60">
+            {festival.guildName} · Festival {festival.number}
+          </p>
+          <h1 className="mt-5 break-words text-balance text-4xl font-medium uppercase leading-[0.95] tracking-tight text-paper sm:text-6xl">
+            The ceremony airs soon
+          </h1>
+          <p className="mt-6 text-sm leading-relaxed text-paper/70">
+            The envelopes are sealed. Your president has set the moment.
+          </p>
+          <div className="mt-10 flex justify-center text-paper">
+            <Countdown deadline={ceremonyAt} expiredLabel="Refresh — it's time" />
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   const [
     { data: resultRows },
     { data: awardRows },
@@ -52,7 +92,7 @@ export default async function CeremonyPage({
   ] = await Promise.all([
     supabase
       .from("award_results")
-      .select("award_id, tmdb_id, votes, total_votes, curator_id")
+      .select("award_id, tmdb_id, votes, total_votes, curator_id, winner_id")
       .eq("festival_id", festival.id),
     supabase
       .from("festival_awards")
@@ -62,7 +102,7 @@ export default async function CeremonyPage({
       .from("lineup_films")
       .select("tmdb_id, film, curator_id")
       .eq("festival_id", festival.id),
-    supabase.rpc("critic_standings", { fid: festival.id }),
+    supabase.rpc("critic_standings_v2", { fid: festival.id }),
   ]);
 
   const awardsInOrder = ceremonyOrder(
@@ -75,34 +115,47 @@ export default async function CeremonyPage({
       }),
     ),
   );
-  const resultByAward = new Map((resultRows ?? []).map((r) => [r.award_id, r]));
+  // Ties stand: an award may carry several winning rows, each its own card.
+  const rowsByAward = new Map<string, NonNullable<typeof resultRows>>();
+  for (const r of resultRows ?? []) {
+    const bucket = rowsByAward.get(r.award_id) ?? [];
+    bucket.push(r);
+    rowsByAward.set(r.award_id, bucket);
+  }
 
-  const results: AwardResult[] = awardsInOrder.flatMap((award) => {
-    const row = resultByAward.get(award.id);
-    if (!row) return [];
-    return [
-      {
+  const results: AwardResult[] = awardsInOrder.flatMap((award) =>
+    (rowsByAward.get(award.id) ?? [])
+      .filter((row) => row.tmdb_id !== null)
+      .map((row) => ({
         awardId: award.id,
         awardName: award.name,
-        filmId: row.tmdb_id,
+        filmId: row.tmdb_id as number,
         votes: row.votes,
         totalVotes: row.total_votes,
         scoring: award.scoring ?? false,
         curatorId: row.curator_id,
-      },
-    ];
-  });
+      })),
+  );
 
   const filmsById = Object.fromEntries(
     (lineupRows ?? []).map((r) => [r.tmdb_id, r.film as Film]),
   );
 
-  // Voice of the People: most upvoted reviewer of the festival. Everyone is
-  // eligible — every curator is a critic too, so the writing stands on its own.
-  const ranked = (standings ?? []) as { user_id: string; upvotes: number }[];
-  const voice = ranked[0]
-    ? { memberId: ranked[0].user_id, upvotes: Number(ranked[0].upvotes) }
-    : null;
+  // Best Critic: the published, penalty-checked winner (leaderboard points
+  // plus Best Review ballots). Older festivals published before v2 fall
+  // back to the raw standings.
+  const criticRows = (rowsByAward.get("best-critic") ?? []).filter(
+    (r) => r.winner_id,
+  );
+  const ranked = (standings ?? []) as { user_id: string; points?: number; upvotes?: number }[];
+  const voice = criticRows[0]
+    ? { memberId: criticRows[0].winner_id as string, upvotes: criticRows[0].votes }
+    : ranked[0]
+      ? {
+          memberId: ranked[0].user_id,
+          upvotes: Number(ranked[0].points ?? ranked[0].upvotes ?? 0),
+        }
+      : null;
 
   // Names for the credits, the closing tally, and the critics' award.
   const memberIds = [

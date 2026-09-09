@@ -138,6 +138,15 @@ export interface AwardCategory {
   locked?: boolean;
   /** Only Best of the Fest counts toward a curator's record. */
   scoring?: boolean;
+  /** Acting categories: the fixed slate, one nominee per lineup film. */
+  nominees?: ActingNominee[];
+}
+
+/** One pre-set acting nominee — a name attached to a film (FESTIVAL-SPEC.md). */
+export interface ActingNominee {
+  tmdbId: number;
+  name: string;
+  personId?: number;
 }
 
 /** What a festival is about. The president picks one family, then names it. */
@@ -292,8 +301,10 @@ export const REVIEW_MAX_CHARS = 200;
 export const UPVOTES_PER_FILM = 3;
 
 /** Honorary categories the president may add on top of Best of the Fest. */
-export const MAX_CUSTOM_AWARDS = 12;
+/** Up to 10 honorary awards beyond the two that score (FESTIVAL-SPEC.md). */
+export const MAX_CUSTOM_AWARDS = 10;
 
 /** The award that settles the festival, and the one the critics play for. */
 export const BEST_OF_THE_FEST = "Best of the Fest";
-export const VOICE_OF_THE_PEOPLE = "Voice of the People";
+/** The critics' award (FESTIVAL-SPEC.md calls it Best Critic). */
+export const VOICE_OF_THE_PEOPLE = "Best Critic";

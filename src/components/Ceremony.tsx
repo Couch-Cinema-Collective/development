@@ -65,7 +65,7 @@ export function Ceremony(props: CeremonyProps) {
           if (!film) return null;
 
           return (
-            <section key={result.awardId} className="ceremony-card">
+            <section key={`${result.awardId}-${result.filmId}`} className="ceremony-card">
               <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-10 text-center sm:flex-row sm:text-left">
                 <div className="w-40 shrink-0 sm:w-52">
                   <FilmPoster film={film} />
@@ -121,8 +121,9 @@ export function Ceremony(props: CeremonyProps) {
               {membersById[voiceOfThePeople.memberId]?.name ?? "Unknown"}
             </h2>
             <p className="mt-6 text-sm text-paper/60 tabular-nums">
-              {voiceOfThePeople.upvotes} upvote
-              {voiceOfThePeople.upvotes === 1 ? "" : "s"} earned
+              {voiceOfThePeople.upvotes} point
+              {voiceOfThePeople.upvotes === 1 ? "" : "s"} — reviews upvoted all
+              season, plus Best Review ballots
             </p>
           </section>
         )}

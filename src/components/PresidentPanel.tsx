@@ -2,8 +2,11 @@
 
 import { useState, useTransition } from "react";
 
+import { publishFestival as publishWithReveal } from "@/app/guild/[id]/actions";
+
 import {
   archiveFestival,
+  closeNominations,
   openAwardsVoting,
   openNominations,
   publishFestival,
@@ -46,11 +49,19 @@ const STEPS: Record<string, Step> = {
     run: (id) => openNominations(id),
   },
   NOMINATING: {
-    status: "Curators are choosing their films",
+    status: "The guild is nominating films",
+    label: "Close nominations",
+    confirm:
+      "Close nominations now? Only LOCKED submissions count. If more films are locked than the festival can screen, everyone gets 24 hours to rank them; otherwise the lineup is drawn immediately. This cannot be undone.",
+    note: "More films than slots → a 24-hour ranking vote. Otherwise the lineup is drawn at once.",
+    run: closeNominations,
+  },
+  RANKING: {
+    status: "The guild is ranking the nominations",
     label: "Draw the lineup",
     confirm:
-      "Draw the lineup now? Nominations close and screening order is drawn at random. Only films curators have LOCKED IN are included — anyone who picked without locking is left out. This cannot be undone.",
-    note: "Locked submissions only. Nothing starts until you open it.",
+      "Draw the lineup? Rank-choice voting closes as it stands and the surviving films are scheduled in random order. This cannot be undone.",
+    note: "Instant-runoff on the ballots as they stand. Nothing starts until you open it.",
     run: setLineup,
   },
   LINEUP_SET: {
@@ -72,7 +83,7 @@ const STEPS: Record<string, Step> = {
     label: "Publish the ceremony",
     confirm:
       "Publish? Winners are computed from the ballots as they stand and cannot be altered afterward.",
-    note: "You see the results at the same moment everyone else does.",
+    note: "Results seal now; the guild sees them at the reveal time you set.",
     run: publishFestival,
   },
   CEREMONY: {
@@ -102,6 +113,7 @@ export function PresidentPanel({
   awaitingOpen?: boolean;
 }) {
   const [error, setError] = useState<string | null>(null);
+  const [revealAt, setRevealAt] = useState("");
   const [pending, startTransition] = useTransition();
 
   // Offer the Open button whenever nothing has begun, whatever the state says.
@@ -116,7 +128,14 @@ export function PresidentPanel({
     if (step.confirm && !window.confirm(step.confirm)) return;
     setError(null);
     startTransition(async () => {
-      const result = await step.run!(festivalId);
+      // Publishing carries the scheduled reveal; everything else is plain.
+      const result =
+        state === "AWARDS_VOTING"
+          ? await publishWithReveal(
+              festivalId,
+              revealAt ? new Date(revealAt).toISOString() : undefined,
+            )
+          : await step.run!(festivalId);
       if (result.error) setError(result.error);
     });
   }
@@ -130,6 +149,23 @@ export function PresidentPanel({
 
       {step.label && (
         <div className="mt-5">
+          {state === "AWARDS_VOTING" && (
+            <label className="mb-4 block max-w-xs">
+              <span className="label-eyebrow block">
+                Reveal the results at · optional
+              </span>
+              <input
+                type="datetime-local"
+                value={revealAt}
+                onChange={(e) => setRevealAt(e.target.value)}
+                className="mt-1.5 w-full border border-rule bg-transparent px-3 py-2 text-sm outline-none focus:border-signal"
+              />
+              <span className="mt-1 block text-xs leading-relaxed text-ink-faint">
+                Leave empty to reveal immediately. Until then only you can see
+                the results; the guild sees a countdown.
+              </span>
+            </label>
+          )}
           <button
             type="button"
             onClick={activate}

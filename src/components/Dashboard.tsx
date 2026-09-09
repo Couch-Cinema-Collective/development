@@ -1,15 +1,17 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 
 import { Countdown } from "./Countdown";
 import { FilmPoster } from "./FilmPoster";
+import { syncFestivalClock, tapHaptic } from "@/lib/native";
 import {
+  allocateUpvote,
   reportReview,
   saveReview,
   setWatched,
-  toggleUpvote,
+  type UpvoteKind,
 } from "@/app/dashboard/actions";
 import {
   PHASE_LABELS,
@@ -33,8 +35,11 @@ export interface ThreadReview {
   authorName: string | null;
   body: string;
   eligible: boolean;
-  upvotes: number;
-  upvotedByMe: boolean;
+  insightful: number;
+  funniest: number;
+  /** The signed-in member's stacked allocation on this review, per kind. */
+  myInsightful: number;
+  myFunniest: number;
   mine: boolean;
   /** Whether the signed-in member already flagged this review. */
   reportedByMe: boolean;
@@ -54,9 +59,16 @@ export interface DashboardProps {
   /** Reviews for the current film only — the rest are read on its own page. */
   thread: ThreadReview[];
   myReview: string;
-  upvotesSpent: number;
+  insightfulSpent: number;
+  funniestSpent: number;
+  /** The curator's anonymous Producer's Pitch for the current film. */
+  pitch: string;
   /** Standing: what this member has earned so far. */
   upvotesEarned: number;
+  /** The Best Critic board — revealed weeks only, names resolved. */
+  leaderboard: { name: string; points: number; me: boolean }[];
+  /** Watch windows this member let close unwatched. >0 means: can't win. */
+  myMisses: number;
   reviewsFiled: number;
   festivalAwards: number;
   /** Curators have a film in the lineup; critics do not. */
@@ -81,8 +93,12 @@ export function Dashboard({
   watchedIds,
   thread,
   myReview,
-  upvotesSpent,
+  insightfulSpent,
+  funniestSpent,
+  pitch,
   upvotesEarned,
+  leaderboard,
+  myMisses,
   reviewsFiled,
   festivalAwards,
   isCurator,
@@ -91,7 +107,10 @@ export function Dashboard({
   const [watched, setWatchedState] = useState(new Set(watchedIds));
   const [reviewText, setReviewText] = useState(myReview);
   const [reviews, setReviews] = useState(thread);
-  const [spent, setSpent] = useState(upvotesSpent);
+  const [spent, setSpent] = useState<Record<UpvoteKind, number>>({
+    insightful: insightfulSpent,
+    funniest: funniestSpent,
+  });
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -99,15 +118,38 @@ export function Dashboard({
   const phase: ScreeningPhase | null = current ? phaseOf(current) : null;
   const deadline = current ? phaseDeadline(current) : null;
   const isWatched = current ? watched.has(current.film.id) : false;
-  const remaining = UPVOTES_PER_FILM - spent;
+  const remaining: Record<UpvoteKind, number> = {
+    insightful: UPVOTES_PER_FILM - spent.insightful,
+    funniest: UPVOTES_PER_FILM - spent.funniest,
+  };
 
   const progress = useMemo(
     () => lineup.filter((f) => phaseOf(f) === "CLOSED").length,
     [lineup],
   );
 
+  // Mirror the festival clock onto the iOS widget and Live Activity. On the
+  // web this is a no-op; on device it keeps the Lock Screen honest.
+  const deadlineMs = deadline ? new Date(deadline).getTime() : null;
+  const filmCount = lineup.length;
+  useEffect(() => {
+    void syncFestivalClock(
+      current && phase && phase !== "CLOSED"
+        ? {
+            guildName,
+            filmTitle: current.film.title,
+            phaseLabel: PHASE_LABELS[phase],
+            deadline: deadlineMs,
+            position: current.position,
+            filmCount,
+          }
+        : null,
+    );
+  }, [current, phase, deadlineMs, guildName, filmCount]);
+
   function onWatch(next: boolean) {
     if (!current) return;
+    void tapHaptic();
     const id = current.film.id;
     setWatchedState((prev) => {
       const copy = new Set(prev);
@@ -137,43 +179,53 @@ export function Dashboard({
       const result = await saveReview(festivalId, current.film.id, reviewText);
       if (result.error) setError(result.error);
       else {
+        void tapHaptic();
         setSaved(true);
         setTimeout(() => setSaved(false), 2500);
       }
     });
   }
 
-  function onUpvote(reviewId: string, up: boolean) {
+  /** Move one of the six weekly votes (3 insightful, 3 funniest). */
+  function onAllocate(reviewId: string, kind: UpvoteKind, add: boolean) {
     if (!current) return;
-    if (up && remaining <= 0) {
-      setError(`All ${UPVOTES_PER_FILM} upvotes are spent on this film.`);
+    if (add && remaining[kind] <= 0) {
+      setError(`All ${UPVOTES_PER_FILM} ${kind} upvotes are spent on this film.`);
       return;
     }
     setError(null);
 
+    const field = kind === "insightful" ? "myInsightful" : "myFunniest";
+    const delta = add ? 1 : -1;
     setReviews((prev) =>
       prev.map((r) =>
-        r.id === reviewId
-          ? { ...r, upvotedByMe: up, upvotes: r.upvotes + (up ? 1 : -1) }
-          : r,
+        r.id === reviewId ? { ...r, [field]: r[field] + delta } : r,
       ),
     );
-    setSpent((n) => n + (up ? 1 : -1));
+    setSpent((prev) => ({ ...prev, [kind]: prev[kind] + delta }));
+    void tapHaptic();
 
     startTransition(async () => {
-      const result = await toggleUpvote(festivalId, current.film.id, reviewId, up);
+      const result = await allocateUpvote(
+        festivalId,
+        current.film.id,
+        reviewId,
+        kind,
+        add,
+      );
       if (result.error) {
         setError(result.error);
         setReviews((prev) =>
           prev.map((r) =>
-            r.id === reviewId
-              ? { ...r, upvotedByMe: !up, upvotes: r.upvotes + (up ? -1 : 1) }
-              : r,
+            r.id === reviewId ? { ...r, [field]: r[field] - delta } : r,
           ),
         );
-        setSpent((n) => n + (up ? -1 : 1));
-      } else if (typeof result.spent === "number") {
-        setSpent(result.spent);
+        setSpent((prev) => ({ ...prev, [kind]: prev[kind] - delta }));
+      } else {
+        setSpent({
+          insightful: UPVOTES_PER_FILM - (result.insightfulRemaining ?? 0),
+          funniest: UPVOTES_PER_FILM - (result.funniestRemaining ?? 0),
+        });
       }
     });
   }
@@ -181,6 +233,7 @@ export function Dashboard({
   /** Flag a review for the president. Optimistic, like upvotes. */
   function onReport(reviewId: string) {
     setError(null);
+    void tapHaptic();
     setReviews((prev) =>
       prev.map((r) => (r.id === reviewId ? { ...r, reportedByMe: true } : r)),
     );
@@ -200,6 +253,16 @@ export function Dashboard({
   return (
     <div className="grid gap-10 lg:grid-cols-[1fr_300px]">
       <div className="min-w-0 space-y-10">
+        {myMisses > 0 && (
+          <p className="border border-signal bg-paper-raised px-5 py-4 text-sm leading-relaxed">
+            <span className="font-medium text-signal">
+              You missed {myMisses} watch window{myMisses === 1 ? "" : "s"}.
+            </span>{" "}
+            The film stays, your reviews and votes still count — but you can
+            no longer win this festival&apos;s awards.
+          </p>
+        )}
+
         {/* ── What you owe right now ─────────────────────────────────────── */}
         {current && phase && deadline ? (
           <section className="border border-ink bg-paper-raised">
@@ -227,6 +290,16 @@ export function Dashboard({
                   {current.film.director ? ` · ${current.film.director}` : ""}
                   {current.film.runtime ? ` · ${current.film.runtime} min` : ""}
                 </p>
+                {pitch && (
+                  <blockquote className="mt-4 max-w-lg border-l-2 border-signal pl-4">
+                    <p className="text-sm italic leading-relaxed text-ink-soft">
+                      &ldquo;{pitch}&rdquo;
+                    </p>
+                    <p className="label-eyebrow mt-1.5">
+                      The producer&apos;s pitch · curator anonymous
+                    </p>
+                  </blockquote>
+                )}
 
                 <div className="mt-7">
                   <p className="label-eyebrow">{DEADLINE_LABEL[phase]}</p>
@@ -308,12 +381,14 @@ export function Dashboard({
                 <div>
                   <div className="flex flex-wrap items-baseline justify-between gap-3">
                     <p className="text-sm font-medium uppercase tracking-tight">
-                      Spend your {UPVOTES_PER_FILM} upvotes
+                      Spend your upvotes — {UPVOTES_PER_FILM} insightful,{" "}
+                      {UPVOTES_PER_FILM} funniest
                     </p>
                     <p
-                      className={`label-eyebrow ${remaining > 0 ? "text-signal" : ""}`}
+                      className={`label-eyebrow ${remaining.insightful + remaining.funniest > 0 ? "text-signal" : ""}`}
                     >
-                      {remaining} left
+                      {remaining.insightful} insightful · {remaining.funniest}{" "}
+                      funniest left
                     </p>
                   </div>
                   <p className="mt-1 text-xs text-ink-faint">
@@ -336,22 +411,25 @@ export function Dashboard({
                           )}
                         </p>
                         {!r.mine && (
-                          <span className="flex shrink-0 items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => onUpvote(r.id, !r.upvotedByMe)}
-                              disabled={
-                                pending || (!r.upvotedByMe && remaining <= 0)
+                          <span className="flex shrink-0 flex-wrap items-center gap-2">
+                            <AllocateControl
+                              label="Insightful"
+                              count={r.myInsightful}
+                              canAdd={!pending && remaining.insightful > 0}
+                              onAdd={() => onAllocate(r.id, "insightful", true)}
+                              onRemove={() =>
+                                onAllocate(r.id, "insightful", false)
                               }
-                              aria-pressed={r.upvotedByMe}
-                              className={`border px-4 py-2 text-xs font-medium uppercase tracking-[0.12em] transition-colors disabled:opacity-30 ${
-                                r.upvotedByMe
-                                  ? "border-signal bg-signal text-paper"
-                                  : "border-rule hover:border-ink"
-                              }`}
-                            >
-                              {r.upvotedByMe ? "Upvoted" : "Upvote"}
-                            </button>
+                            />
+                            <AllocateControl
+                              label="Funniest"
+                              count={r.myFunniest}
+                              canAdd={!pending && remaining.funniest > 0}
+                              onAdd={() => onAllocate(r.id, "funniest", true)}
+                              onRemove={() =>
+                                onAllocate(r.id, "funniest", false)
+                              }
+                            />
                             <ReportButton
                               reported={r.reportedByMe}
                               onReport={() => onReport(r.id)}
@@ -517,6 +595,39 @@ export function Dashboard({
           </p>
         </section>
 
+        {leaderboard.length > 0 && (
+          <section className="border border-rule bg-paper-raised px-5 py-5">
+            <h2 className="label-eyebrow border-b border-rule pb-2">
+              Best Critic — the board
+            </h2>
+            <ol className="mt-4 grid gap-2.5">
+              {leaderboard.map((row, i) => (
+                <li
+                  key={`${row.name}-${i}`}
+                  className="flex items-baseline gap-3"
+                >
+                  <span className="w-5 shrink-0 text-sm tabular-nums text-ink-faint">
+                    {i + 1}
+                  </span>
+                  <span
+                    className={`min-w-0 flex-1 truncate text-sm ${row.me ? "font-medium text-signal" : ""}`}
+                  >
+                    {row.name}
+                    {row.me && " (you)"}
+                  </span>
+                  <span className="shrink-0 text-sm font-medium tabular-nums">
+                    {row.points}
+                  </span>
+                </li>
+              ))}
+            </ol>
+            <p className="mt-4 text-xs leading-relaxed text-ink-faint">
+              Updates Wednesdays as each film&apos;s votes are revealed.
+              Insightful and Funniest both score one point.
+            </p>
+          </section>
+        )}
+
         {next && current && (
           <section className="border border-rule bg-paper-raised px-5 py-5">
             <h2 className="label-eyebrow border-b border-rule pb-2">
@@ -609,5 +720,56 @@ function ReportButton({
     >
       {armed ? "Confirm" : "Report"}
     </button>
+  );
+}
+
+/**
+ * One vote type on one review: tap the label to spend a vote (stacking is
+ * allowed), tap the count to take one back. Counts show YOUR allocation —
+ * totals stay sealed until the Wednesday reveal.
+ */
+function AllocateControl({
+  label,
+  count,
+  canAdd,
+  onAdd,
+  onRemove,
+}: {
+  label: string;
+  count: number;
+  canAdd: boolean;
+  onAdd: () => void;
+  onRemove: () => void;
+}) {
+  return (
+    <span
+      className={`inline-flex items-stretch border text-xs font-medium uppercase tracking-[0.1em] ${
+        count > 0 ? "border-signal" : "border-rule"
+      }`}
+    >
+      <button
+        type="button"
+        onClick={onAdd}
+        disabled={!canAdd}
+        className={`px-3 py-2 transition-colors disabled:opacity-30 ${
+          count > 0
+            ? "bg-signal text-paper hover:bg-signal-dark"
+            : "hover:border-ink hover:text-ink"
+        }`}
+      >
+        {label}
+        {count > 0 && <span className="ml-1.5 tabular-nums">×{count}</span>}
+      </button>
+      {count > 0 && (
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label={`Take back one ${label} upvote`}
+          className="border-l border-signal px-2 text-signal transition-colors hover:bg-signal hover:text-paper"
+        >
+          −
+        </button>
+      )}
+    </span>
   );
 }

@@ -46,6 +46,27 @@ html {
   }
 }
 
+/*
+ * Inside the Capacitor shell (html.native, set by NativeChrome) the page
+ * should feel like an app, not a website: no tap flashes, no long-press
+ * link previews, no rubber-banding the whole document, no text selection
+ * on chrome. Content that should stay copyable opts back in.
+ */
+.native * {
+  -webkit-tap-highlight-color: transparent;
+}
+.native a,
+.native button,
+.native nav,
+.native header {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.native body {
+  overscroll-behavior-y: none;
+}
+
 body {
   /* Clear the notch and home indicator. Paired with viewportFit: "cover" —
      without these the content sits under the system UI. */

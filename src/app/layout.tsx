@@ -6,6 +6,7 @@ import Link from "next/link";
 import "./globals.css";
 import { AuthStatus } from "@/components/AuthStatus";
 import { GuildMenu } from "@/components/GuildMenu";
+import { NativeChrome } from "@/components/NativeChrome";
 import { WelcomeTour } from "@/components/WelcomeTour";
 import { PushRegistrar } from "@/components/PushRegistrar";
 import { SiteNav } from "@/components/SiteNav";
@@ -130,6 +131,7 @@ export default async function RootLayout({
           </div>
         </header>
 
+        <NativeChrome />
         <PushRegistrar signedIn={signedIn} />
         {signedIn && <WelcomeTour role={tourRole} />}
 

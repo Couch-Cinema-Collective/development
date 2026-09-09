@@ -2,11 +2,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Countdown } from "@/components/Countdown";
+import { NominationGrid, type GridEntry } from "@/components/NominationGrid";
 import { NominationPicker } from "@/components/NominationPicker";
 import { getCurrentFestival } from "@/lib/guilds";
 import { createClient } from "@/lib/supabase/server";
 import { catalogForCategory, isLive } from "@/lib/tmdb";
-import { isCurator, type Film, type GuildRole } from "@/lib/types";
+import { type Film } from "@/lib/types";
 
 /** Where a curator puts their one film up (PLAN.md §1.1). */
 export default async function NominatePage({
@@ -43,55 +44,33 @@ export default async function NominatePage({
     );
   }
 
-  const { data: membership } = await supabase
-    .from("guild_members")
-    .select("role")
-    .eq("guild_id", festival.guildId)
-    .eq("user_id", user.id)
-    .maybeSingle();
 
-  const role = (membership?.role ?? "critic") as GuildRole;
+  const [{ data: mine }, { data: countRow }, { data: gridRows }, catalog] =
+    await Promise.all([
+      supabase
+        .from("nominations")
+        .select("tmdb_id, film, locked, pitch")
+        .eq("festival_id", festival.id)
+        .eq("user_id", user.id)
+        .maybeSingle(),
+      supabase.rpc("nomination_count", { fid: festival.id }).maybeSingle(),
+      supabase.rpc("nomination_grid", { fid: festival.id }),
+      catalogForCategory(festival.theme),
+    ]);
 
-  // Critics vote but do not programme — say so plainly rather than showing a
-  // picker that Postgres would reject.
-  if (!isCurator(role)) {
-    return (
-      <main className="mx-auto max-w-3xl px-6 py-16">
-        <p className="label-eyebrow">
-          {festival.guildName} · Festival {festival.number}
-        </p>
-        <h1 className="mt-3 text-5xl font-medium uppercase leading-none tracking-tight">
-          Curators are programming
-        </h1>
-        <p className="mt-6 max-w-xl leading-relaxed text-ink-soft">
-          {festival.theme} is being put together now. You&apos;re a critic on
-          this one, so your part starts when the first film opens — watching,
-          reviewing, and voting on every title in the lineup.
-        </p>
-        <p className="mt-4 max-w-xl leading-relaxed text-ink-soft">
-          Want a curator seat next time?{" "}
-          <Link
-            href={`/guild/${festival.guildId}`}
-            className="underline hover:text-signal"
-          >
-            Ask your president
-          </Link>
-          .
-        </p>
-      </main>
-    );
-  }
-
-  const [{ data: mine }, { data: countRow }, catalog] = await Promise.all([
-    supabase
-      .from("nominations")
-      .select("tmdb_id, film, locked")
-      .eq("festival_id", festival.id)
-      .eq("user_id", user.id)
-      .maybeSingle(),
-    supabase.rpc("nomination_count", { fid: festival.id }).maybeSingle(),
-    catalogForCategory(festival.theme),
-  ]);
+  const board: GridEntry[] = (
+    (gridRows ?? []) as {
+      tmdb_id: number;
+      film: Film;
+      pitch: string;
+      locked: boolean;
+    }[]
+  ).map((r) => ({
+    tmdbId: r.tmdb_id,
+    film: r.film,
+    pitch: r.pitch,
+    locked: r.locked,
+  }));
 
   const counts = countRow as
     | { submitted: number; picked: number; expected: number }
@@ -132,11 +111,13 @@ export default async function NominatePage({
           theme={festival.theme}
           catalog={catalog}
           initialPick={(mine?.film as Film) ?? null}
+          initialPitch={mine?.pitch ?? ""}
           initialLocked={Boolean(mine?.locked)}
           initialSubmitted={Number(counts?.submitted ?? 0)}
           expected={Number(counts?.expected ?? 0)}
           live={isLive()}
         />
+        <NominationGrid festivalId={festival.id} initial={board} />
       </div>
     </main>
   );
