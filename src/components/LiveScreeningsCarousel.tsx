@@ -37,7 +37,11 @@ export function LiveScreeningsCarousel({ items }: { items: LiveScreening[] }) {
             </h3>
 
             <div className="mt-auto">
-              <Countdown deadline={item.deadline} size="small" />
+              <Countdown
+                deadline={item.deadline}
+                size="small"
+                forceUrgent={item.phase !== "UPCOMING"}
+              />
             </div>
           </div>
         </Link>

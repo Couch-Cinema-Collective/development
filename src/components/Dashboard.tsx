@@ -523,6 +523,7 @@ export function Dashboard({
                   deadline={next.viewingStartsAt}
                   expiredLabel="Open now"
                   size="small"
+                  forceUrgent={false}
                 />
               </div>
             </div>
@@ -667,7 +668,11 @@ function FilmSlide({
             <div className="mt-7">
               <p className="label-eyebrow">{DEADLINE_LABEL[phase]}</p>
               <div className="mt-2">
-                <Countdown deadline={deadline} expiredLabel="Just closed" />
+                <Countdown
+                  deadline={deadline}
+                  expiredLabel="Just closed"
+                  forceUrgent={isCurrent}
+                />
               </div>
             </div>
           )}

@@ -99,7 +99,11 @@ export default async function FilmPage({
                 {phase === "UPCOMING" ? "Opens in" : "Time left in this window"}
               </p>
               <div className="mt-2">
-                <Countdown deadline={deadline} expiredLabel="Just closed" />
+                <Countdown
+                  deadline={deadline}
+                  expiredLabel="Just closed"
+                  forceUrgent={phase !== "UPCOMING"}
+                />
               </div>
             </div>
           )}

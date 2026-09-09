@@ -27,11 +27,20 @@ export function Countdown({
   size = "large",
   /** Below this many hours the clock turns red — you are nearly out of time. */
   urgentBelowHours = 24,
+  /**
+   * Skip the time-based check and pin the color: true always red, false
+   * always black. Use this where urgency should track something other than
+   * "how soon" — e.g. a film that isn't open yet stays calm no matter how
+   * close its opening is, while the one actually screening stays red the
+   * whole way through.
+   */
+  forceUrgent,
 }: {
   deadline: string;
   expiredLabel?: string;
   size?: "large" | "small";
   urgentBelowHours?: number;
+  forceUrgent?: boolean;
 }) {
   // Computed after mount so server and client markup agree on first paint.
   const [time, setTime] = useState<ReturnType<typeof remaining>>(null);
@@ -64,7 +73,7 @@ export function Countdown({
     );
   }
 
-  const urgent = time.total < urgentBelowHours * 3_600_000;
+  const urgent = forceUrgent ?? time.total < urgentBelowHours * 3_600_000;
   const units = [
     { value: time.days, label: "Days" },
     { value: time.hours, label: "Hrs" },
