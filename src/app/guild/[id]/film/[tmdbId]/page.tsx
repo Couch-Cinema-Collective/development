@@ -4,9 +4,8 @@ import { notFound, redirect } from "next/navigation";
 import { Countdown } from "@/components/Countdown";
 import { FilmPoster } from "@/components/FilmPoster";
 import { getCurrentFestival } from "@/lib/guilds";
-import { PHASE_LABELS, phaseDeadline, phaseOf } from "@/lib/lineup";
+import { PHASE_LABELS, phaseDeadline, phaseOf, toLineup, type LineupRow } from "@/lib/lineup";
 import { createClient } from "@/lib/supabase/server";
-import type { Film, LineupFilm } from "@/lib/types";
 
 /** Mirrors LIVE_STATES in src/app/dashboard/page.tsx — states with a running clock. */
 const LIVE_STATES = ["LINEUP_SET", "SCREENING", "AWARDS_VOTING"];
@@ -35,28 +34,20 @@ export default async function FilmPage({
   const festival = await getCurrentFestival(LIVE_STATES, guildId);
   if (!festival) notFound();
 
-  const { data: row } = await supabase
+  const { data: rows } = await supabase
     .from("lineup_films")
     .select(
-      "film, position, viewing_starts_at, review_starts_at, voting_starts_at, closes_at",
+      "tmdb_id, film, position, curator_id, viewing_starts_at, review_starts_at, voting_starts_at, closes_at",
     )
-    .eq("festival_id", festival.id)
-    .eq("tmdb_id", Number(tmdbId))
-    .maybeSingle();
-  if (!row?.viewing_starts_at || !row.review_starts_at || !row.voting_starts_at || !row.closes_at) {
-    notFound();
-  }
+    .eq("festival_id", festival.id);
 
-  const film = row.film as Film;
-  const entry: LineupFilm = {
-    film,
-    position: row.position ?? 0,
-    curatorId: null,
-    viewingStartsAt: row.viewing_starts_at,
-    reviewStartsAt: row.review_starts_at,
-    votingStartsAt: row.voting_starts_at,
-    closesAt: row.closes_at,
-  };
+  // toLineup() derives position from screening order rather than trusting
+  // the stored column, so this page's numbering always matches the dashboard.
+  const lineup = toLineup((rows ?? []) as LineupRow[]);
+  const entry = lineup.find((f) => f.film.id === Number(tmdbId));
+  if (!entry) notFound();
+
+  const film = entry.film;
   const phase = phaseOf(entry);
   const deadline = phaseDeadline(entry);
 
@@ -76,7 +67,7 @@ export default async function FilmPage({
 
         <div className="min-w-0">
           <p className="label-eyebrow text-signal">
-            {PHASE_LABELS[phase]} · Film {entry.position} of {festival.filmCount}
+            {PHASE_LABELS[phase]} · Film {entry.position} of {lineup.length}
           </p>
           <h1 className="mt-2 text-balance text-4xl font-medium uppercase leading-none tracking-tight sm:text-5xl">
             {film.title}

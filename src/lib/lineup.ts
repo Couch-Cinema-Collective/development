@@ -134,6 +134,12 @@ export interface LineupRow {
 /**
  * Rows that predate the clock (or a lineup mid-setup) have no timestamps.
  * They are dropped rather than rendered with a broken schedule.
+ *
+ * Position is reassigned here from screening order rather than trusted from
+ * the row — some festivals carry rows whose stored `position` never got
+ * backfilled, and a bare `?? 0` there showed every film as "0 of N".
+ * viewingStartsAt is required to reach this point at all, so ordering by it
+ * is always available and always matches the true screening order.
  */
 export function toLineup(rows: LineupRow[]): LineupFilm[] {
   return rows
@@ -158,5 +164,6 @@ export function toLineup(rows: LineupRow[]): LineupFilm[] {
         },
       ];
     })
-    .sort((a, b) => a.position - b.position);
+    .sort((a, b) => Date.parse(a.viewingStartsAt) - Date.parse(b.viewingStartsAt))
+    .map((f, i) => ({ ...f, position: i + 1 }));
 }
