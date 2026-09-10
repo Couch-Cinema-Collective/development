@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 
 import { FilmPoster } from "./FilmPoster";
+import { closeNominations } from "@/app/guild/[id]/actions";
 import {
   lockNomination,
   nominate,
@@ -13,6 +15,7 @@ import { BEST_OF_THE_FEST, type Film } from "@/lib/types";
 
 export interface NominationPickerProps {
   festivalId: string;
+  guildId: string;
   theme: string;
   /** Films from the theme's catalog, shown before anyone searches. */
   catalog: Film[];
@@ -24,6 +27,8 @@ export interface NominationPickerProps {
   initialLocked: boolean;
   initialSubmitted: number;
   expected: number;
+  /** Only the president can lock the whole programme in early. */
+  isPresident: boolean;
   /** False when running on fixtures rather than live TMDB. */
   live: boolean;
 }
@@ -37,6 +42,7 @@ export interface NominationPickerProps {
  */
 export function NominationPicker({
   festivalId,
+  guildId,
   theme,
   catalog,
   initialPick,
@@ -44,8 +50,10 @@ export function NominationPicker({
   initialLocked,
   initialSubmitted,
   expected,
+  isPresident,
   live,
 }: NominationPickerProps) {
+  const router = useRouter();
   const [pick, setPick] = useState<Film | null>(initialPick);
   const [pitch, setPitch] = useState(initialPitch);
   const [pitchSaved, setPitchSaved] = useState(false);
@@ -95,6 +103,23 @@ export function NominationPicker({
         setLocked(true);
         if (typeof result.submitted === "number") setSubmitted(result.submitted);
       }
+    });
+  }
+
+  /** The president's own early-close: lock the whole programme in at once. */
+  function lockProgramme() {
+    if (
+      !window.confirm(
+        "Lock in nominations now? Only LOCKED submissions count. If more films are locked than the festival can screen, everyone gets 24 hours to rank them; otherwise the lineup is drawn immediately. This cannot be undone.",
+      )
+    ) {
+      return;
+    }
+    setError(null);
+    startTransition(async () => {
+      const result = await closeNominations(festivalId);
+      if (result.error) setError(result.error);
+      else router.push(`/guild/${guildId}`);
     });
   }
 
@@ -189,6 +214,25 @@ export function NominationPicker({
               Curators who have locked a film in. Titles stay secret until the
               lineup is drawn.
             </p>
+
+            {isPresident && expected > 0 && submitted >= expected && (
+              <div className="mt-4 border border-ink bg-paper px-5 py-4">
+                <p className="text-sm font-medium uppercase tracking-tight text-signal">
+                  Everyone&apos;s picked
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-ink-faint">
+                  Lock in nominations instead of waiting for the clock.
+                </p>
+                <button
+                  type="button"
+                  onClick={lockProgramme}
+                  disabled={pending}
+                  className="mt-3 bg-signal px-6 py-3 text-sm font-medium uppercase tracking-[0.14em] text-paper transition-colors hover:bg-ink disabled:opacity-50"
+                >
+                  Lock in nominations
+                </button>
+              </div>
+            )}
           </section>
         </aside>
       </div>
@@ -382,6 +426,25 @@ export function NominationPicker({
             Curators who have locked a film in. Titles stay secret until the
             lineup is drawn — nobody gets to react to anyone else&apos;s pick.
           </p>
+
+          {isPresident && expected > 0 && submitted >= expected && (
+            <div className="mt-4 border border-ink bg-paper px-5 py-4">
+              <p className="text-sm font-medium uppercase tracking-tight text-signal">
+                Everyone&apos;s picked
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-ink-faint">
+                Lock in nominations instead of waiting for the clock.
+              </p>
+              <button
+                type="button"
+                onClick={lockProgramme}
+                disabled={pending}
+                className="mt-3 bg-signal px-6 py-3 text-sm font-medium uppercase tracking-[0.14em] text-paper transition-colors hover:bg-ink disabled:opacity-50"
+              >
+                Lock in nominations
+              </button>
+            </div>
+          )}
         </section>
 
         <section className="mt-8 border border-rule bg-paper-raised px-5 py-5">

@@ -45,7 +45,7 @@ export default async function NominatePage({
   }
 
 
-  const [{ data: mine }, { data: countRow }, { data: gridRows }, catalog] =
+  const [{ data: mine }, { data: countRow }, { data: gridRows }, catalog, { data: membership }] =
     await Promise.all([
       supabase
         .from("nominations")
@@ -56,6 +56,12 @@ export default async function NominatePage({
       supabase.rpc("nomination_count", { fid: festival.id }).maybeSingle(),
       supabase.rpc("nomination_grid", { fid: festival.id }),
       catalogForCategory(festival.theme),
+      supabase
+        .from("guild_members")
+        .select("role")
+        .eq("guild_id", festival.guildId)
+        .eq("user_id", user.id)
+        .maybeSingle(),
     ]);
 
   const board: GridEntry[] = (
@@ -108,6 +114,7 @@ export default async function NominatePage({
       <div className="mt-12">
         <NominationPicker
           festivalId={festival.id}
+          guildId={festival.guildId}
           theme={festival.theme}
           catalog={catalog}
           initialPick={(mine?.film as Film) ?? null}
@@ -115,6 +122,7 @@ export default async function NominatePage({
           initialLocked={Boolean(mine?.locked)}
           initialSubmitted={Number(counts?.submitted ?? 0)}
           expected={Number(counts?.expected ?? 0)}
+          isPresident={membership?.role === "president"}
           live={isLive()}
         />
         <NominationGrid festivalId={festival.id} initial={board} />

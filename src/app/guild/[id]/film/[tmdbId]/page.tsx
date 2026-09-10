@@ -101,8 +101,8 @@ export default async function FilmPage({
 
           {phase === "UPCOMING" && (
             <p className="mt-6 text-xs leading-relaxed text-ink-faint">
-              Reviewing opens once this film's own window starts — for now,
-              this is just a look ahead.
+              Reviewing opens once this film&apos;s own window starts — for
+              now, this is just a look ahead.
             </p>
           )}
         </div>
