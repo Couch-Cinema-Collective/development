@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { CopyButton } from "@/components/CopyButton";
 import { Dashboard, type ThreadReview } from "@/components/Dashboard";
 import { GuildSwitcher } from "@/components/GuildSwitcher";
-import { getCurrentFestival, getUserMemberships } from "@/lib/guilds";
+import { RosterActions } from "@/components/RosterActions";
+import { getCurrentFestival, getGuildHome, getUserMemberships } from "@/lib/guilds";
 import {
   currentFilm,
   nextFilm,
@@ -12,7 +14,7 @@ import {
   type LineupRow,
 } from "@/lib/lineup";
 import { createClient } from "@/lib/supabase/server";
-import { isCurator, type GuildRole } from "@/lib/types";
+import { isCurator, MAX_CRITICS, type GuildRole } from "@/lib/types";
 
 /** States in which a member has something to do film by film. */
 const LIVE_STATES = ["LINEUP_SET", "SCREENING", "AWARDS_VOTING"];
@@ -310,6 +312,15 @@ export default async function DashboardPage({
 
   const role = (membership?.role ?? "critic") as GuildRole;
 
+  // The president's own guild home lives on a separate page, which makes
+  // checking the clock and inviting people two trips instead of one. Fold
+  // the two things a president actually reaches for daily — the invite
+  // link and the critic roster — onto the bottom of this page instead.
+  const guildHome = role === "president" ? await getGuildHome(festival.guildId) : null;
+  const inviteUrl = guildHome
+    ? `https://www.couchcinemacollective.com/join/${guildHome.inviteCode}`
+    : null;
+
   return (
     <main className="mx-auto max-w-6xl px-6 py-12">
       <header className="border-b border-rule pb-6">
@@ -363,6 +374,75 @@ export default async function DashboardPage({
           drawnButNotOpen={drawnButNotOpen}
         />
       </div>
+
+      {guildHome && inviteUrl && (
+        <div className="mt-16 space-y-10 border-t border-rule pt-10">
+          <section className="border border-rule bg-paper-raised p-6">
+            <h2 className="label-eyebrow">Invite</h2>
+            <div className="mt-4 flex flex-wrap items-center gap-4">
+              <code className="min-w-0 flex-1 break-all text-sm">
+                {inviteUrl}
+              </code>
+              <CopyButton text={inviteUrl} />
+            </div>
+            <p className="mt-4 text-xs leading-relaxed text-ink-faint">
+              Anyone with this link picks their own chair on the way in.
+              Critic seats are effectively unlimited; curator seats are{" "}
+              {guildHome.maxCurators - guildHome.curators.length > 0
+                ? `first come first served — ${guildHome.maxCurators - guildHome.curators.length} of ${guildHome.maxCurators} still free.`
+                : `all taken (${guildHome.maxCurators} of ${guildHome.maxCurators}).`}
+            </p>
+          </section>
+
+          <section>
+            <h2 className="label-eyebrow border-b border-rule pb-2">
+              Critics · {guildHome.critics.length} of{" "}
+              {guildHome.maxCritics || MAX_CRITICS}
+            </h2>
+            {guildHome.critics.length > 0 ? (
+              <ul className="mt-4 grid gap-px border border-rule bg-rule">
+                {guildHome.critics.map((m) => (
+                  <li
+                    key={m.userId}
+                    className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 bg-paper-raised px-6 py-4"
+                  >
+                    <span className="font-medium">
+                      {m.fullName}
+                      {m.userId === user.id && (
+                        <span className="ml-2 text-xs text-ink-faint">
+                          (you)
+                        </span>
+                      )}
+                    </span>
+                    <span className="flex items-center gap-4">
+                      <span className="label-eyebrow">Critic</span>
+                      <RosterActions
+                        guildId={guildHome.id}
+                        userId={m.userId}
+                        role={m.role}
+                        isSelf={m.userId === user.id}
+                        presidentView
+                        initiallyBlocked={blocked.has(m.userId)}
+                      />
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-4 max-w-xl text-sm leading-relaxed text-ink-soft">
+                No critics beyond the curators yet. The voting body can run
+                to {guildHome.maxCritics || MAX_CRITICS} — share the invite
+                link.
+              </p>
+            )}
+            <p className="mt-3 text-xs leading-relaxed text-ink-faint">
+              Blocking hides a member&apos;s revealed reviews from you — only
+              you. Removing takes a member out of the guild; their festival
+              history stays.
+            </p>
+          </section>
+        </div>
+      )}
     </main>
   );
 }
