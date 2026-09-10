@@ -39,13 +39,82 @@ export async function reportReview(reviewId: string): Promise<ActionResult> {
 }
 
 /**
- * The president's early-close: when everyone has watched, end this film's
- * viewing window now and carry the time saved into every film still ahead,
- * rather than waiting out the clock. advance_screening() re-checks the
- * watch count and the president role itself — this only translates a
- * rejection into something readable.
+ * The president's three early-closes — one per phase boundary. Each just
+ * zeroes out the timestamp that ends the current phase; screening_phase()
+ * picks up the change everywhere else on its own. The SQL functions
+ * re-check the completion count and the president role themselves — these
+ * only translate a rejection into something readable.
  */
-export async function advanceScreening(
+async function runPresidentAdvance(
+  fn: "advance_to_review" | "advance_to_voting" | "finalize_voting",
+  festivalId: string,
+  tmdbId: number,
+  notYetMessage: string,
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Sign in first." };
+
+  const { error } = await supabase.rpc(fn, { fid: festivalId, tid: tmdbId });
+  if (error) {
+    return {
+      error:
+        error.message.includes("Not everyone")
+          ? notYetMessage
+          : "Couldn't move this film forward.",
+    };
+  }
+
+  revalidatePath("/dashboard");
+  return { ok: true };
+}
+
+/** Now Screening -> Review, once everyone's watched. */
+export async function advanceToReview(
+  festivalId: string,
+  tmdbId: number,
+): Promise<ActionResult> {
+  return runPresidentAdvance(
+    "advance_to_review",
+    festivalId,
+    tmdbId,
+    "Not everyone has watched this one yet.",
+  );
+}
+
+/** Review -> Review Voting, once everyone's submitted a review. */
+export async function advanceToVoting(
+  festivalId: string,
+  tmdbId: number,
+): Promise<ActionResult> {
+  return runPresidentAdvance(
+    "advance_to_voting",
+    festivalId,
+    tmdbId,
+    "Not everyone has submitted a review yet.",
+  );
+}
+
+/** Closes the film and pulls every film still ahead forward by the same amount. */
+export async function finalizeVoting(
+  festivalId: string,
+  tmdbId: number,
+): Promise<ActionResult> {
+  return runPresidentAdvance(
+    "finalize_voting",
+    festivalId,
+    tmdbId,
+    "Not everyone has submitted their votes yet.",
+  );
+}
+
+/**
+ * A critic's explicit "I'm done" on this film's upvotes — distinct from
+ * partial allocation, and (client-side) locks their own controls once sent.
+ */
+export async function submitVotes(
   festivalId: string,
   tmdbId: number,
 ): Promise<ActionResult> {
@@ -55,16 +124,14 @@ export async function advanceScreening(
   } = await supabase.auth.getUser();
   if (!user) return { error: "Sign in first." };
 
-  const { error } = await supabase.rpc("advance_screening", {
-    fid: festivalId,
-    tid: tmdbId,
+  const { error } = await supabase.from("vote_submissions").insert({
+    festival_id: festivalId,
+    tmdb_id: tmdbId,
+    user_id: user.id,
   });
-  if (error) {
-    return {
-      error: error.message.includes("watched")
-        ? "Not everyone has watched this one yet."
-        : "Couldn't move this film forward.",
-    };
+  // Already submitted is the outcome they wanted — treat as success.
+  if (error && error.code !== "23505") {
+    return { error: "Couldn't submit your votes. Try again." };
   }
 
   revalidatePath("/dashboard");

@@ -127,6 +127,9 @@ export default async function DashboardPage({
     threadResults,
     { count: watchedCount },
     { count: totalMembers },
+    { count: reviewedCount },
+    { count: voteSubmittedCount },
+    { data: myVoteSubmission },
   ] = await Promise.all([
     current
       ? supabase.rpc("my_upvote_budgets", {
@@ -146,9 +149,11 @@ export default async function DashboardPage({
         return { tmdbId: f.film.id, rows: (data ?? []) as ReviewRow[] };
       }),
     ),
-    // Who's watched the film that's on — the guild-wide count, not just this
-    // member's own mark. RLS explicitly allows reading the whole guild's
-    // watch progress, not only your own row.
+    // Completion counts for the three president advance buttons — each
+    // reads the whole guild's progress, not just this member's own row.
+    // RLS explicitly allows that for watch_records; reviews and
+    // vote_submissions only need a count, never the rows themselves, so the
+    // anonymity the RPCs enforce for content never enters into it.
     current
       ? supabase
           .from("watch_records")
@@ -160,6 +165,29 @@ export default async function DashboardPage({
       .from("guild_members")
       .select("*", { count: "exact", head: true })
       .eq("guild_id", festival.guildId),
+    current
+      ? supabase
+          .from("reviews")
+          .select("*", { count: "exact", head: true })
+          .eq("festival_id", festival.id)
+          .eq("tmdb_id", current.film.id)
+      : Promise.resolve({ count: 0 }),
+    current
+      ? supabase
+          .from("vote_submissions")
+          .select("*", { count: "exact", head: true })
+          .eq("festival_id", festival.id)
+          .eq("tmdb_id", current.film.id)
+      : Promise.resolve({ count: 0 }),
+    current
+      ? supabase
+          .from("vote_submissions")
+          .select("tmdb_id")
+          .eq("festival_id", festival.id)
+          .eq("tmdb_id", current.film.id)
+          .eq("user_id", user.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   const spentByKind = new Map(
@@ -329,6 +357,9 @@ export default async function DashboardPage({
           isPresident={role === "president"}
           watchedCount={watchedCount ?? 0}
           totalMembers={totalMembers ?? 0}
+          reviewedCount={reviewedCount ?? 0}
+          voteSubmittedCount={voteSubmittedCount ?? 0}
+          mySubmittedVotes={Boolean(myVoteSubmission)}
           drawnButNotOpen={drawnButNotOpen}
         />
       </div>

@@ -7,11 +7,14 @@ import { Countdown } from "./Countdown";
 import { FilmPoster } from "./FilmPoster";
 import { syncFestivalClock, tapHaptic } from "@/lib/native";
 import {
-  advanceScreening,
+  advanceToReview,
+  advanceToVoting,
   allocateUpvote,
+  finalizeVoting,
   reportReview,
   saveReview,
   setWatched,
+  submitVotes,
   type UpvoteKind,
 } from "@/app/dashboard/actions";
 import { PHASE_LABELS, phaseDeadline, phaseOf } from "@/lib/lineup";
@@ -68,12 +71,18 @@ export interface DashboardProps {
   festivalAwards: number;
   /** Curators have a film in the lineup; critics do not. */
   isCurator: boolean;
-  /** Only the president can skip ahead once everyone's watched. */
+  /** Only the president can skip a phase ahead once everyone's done their part. */
   isPresident: boolean;
   /** How many guild members have marked the current film watched. */
   watchedCount: number;
-  /** The guild's full roster size — the denominator for watchedCount. */
+  /** The guild's full roster size — the denominator for every count below. */
   totalMembers: number;
+  /** How many guild members have submitted a review for the current film. */
+  reviewedCount: number;
+  /** How many guild members have submitted their upvotes for the current film. */
+  voteSubmittedCount: number;
+  /** Whether the signed-in member has already submitted their own upvotes. */
+  mySubmittedVotes: boolean;
   /**
    * The lineup is drawn but carries no schedule yet — the president has not
    * opened the festival. Distinct from an empty lineup, and from one that has
@@ -106,6 +115,9 @@ export function Dashboard({
   isPresident,
   watchedCount,
   totalMembers,
+  reviewedCount,
+  voteSubmittedCount,
+  mySubmittedVotes,
   drawnButNotOpen,
 }: DashboardProps) {
   const [watched, setWatchedState] = useState(new Set(watchedIds));
@@ -113,6 +125,7 @@ export function Dashboard({
   const [reviews, setReviews] = useState(
     current ? (threadsByFilmId[current.film.id] ?? []) : [],
   );
+  const [submitted, setSubmitted] = useState(mySubmittedVotes);
   const [spent, setSpent] = useState<Record<UpvoteKind, number>>({
     insightful: insightfulSpent,
     funniest: funniestSpent,
@@ -287,13 +300,45 @@ export function Dashboard({
     });
   }
 
-  /** The president skips ahead once everyone's watched — no more waiting. */
-  function onAdvance() {
+  /** The three president buttons — each just ends the current phase early. */
+  function onAdvanceToReview() {
     if (!current) return;
     setError(null);
     startTransition(async () => {
-      const result = await advanceScreening(festivalId, current.film.id);
+      const result = await advanceToReview(festivalId, current.film.id);
       if (result.error) setError(result.error);
+    });
+  }
+
+  function onAdvanceToVoting() {
+    if (!current) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await advanceToVoting(festivalId, current.film.id);
+      if (result.error) setError(result.error);
+    });
+  }
+
+  function onFinalizeVoting() {
+    if (!current) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await finalizeVoting(festivalId, current.film.id);
+      if (result.error) setError(result.error);
+    });
+  }
+
+  /** A critic's own "I'm done" — locks their allocate controls once sent. */
+  function onSubmitVotes() {
+    if (!current) return;
+    setError(null);
+    setSubmitted(true);
+    startTransition(async () => {
+      const result = await submitVotes(festivalId, current.film.id);
+      if (result.error) {
+        setError(result.error);
+        setSubmitted(false);
+      }
     });
   }
 
@@ -360,7 +405,13 @@ export function Dashboard({
                   isPresident={isPresident}
                   watchedCount={watchedCount}
                   totalMembers={totalMembers}
-                  onAdvance={onAdvance}
+                  reviewedCount={reviewedCount}
+                  voteSubmittedCount={voteSubmittedCount}
+                  submitted={submitted}
+                  onAdvanceToReview={onAdvanceToReview}
+                  onAdvanceToVoting={onAdvanceToVoting}
+                  onFinalizeVoting={onFinalizeVoting}
+                  onSubmitVotes={onSubmitVotes}
                   remaining={remaining}
                   onAllocate={onAllocate}
                   onReport={onReport}
@@ -607,7 +658,13 @@ function FilmSlide({
   isPresident,
   watchedCount,
   totalMembers,
-  onAdvance,
+  reviewedCount,
+  voteSubmittedCount,
+  submitted,
+  onAdvanceToReview,
+  onAdvanceToVoting,
+  onFinalizeVoting,
+  onSubmitVotes,
   remaining,
   onAllocate,
   onReport,
@@ -634,7 +691,14 @@ function FilmSlide({
   isPresident: boolean;
   watchedCount: number;
   totalMembers: number;
-  onAdvance: () => void;
+  reviewedCount: number;
+  voteSubmittedCount: number;
+  /** Whether the signed-in member has submitted their own upvotes already. */
+  submitted: boolean;
+  onAdvanceToReview: () => void;
+  onAdvanceToVoting: () => void;
+  onFinalizeVoting: () => void;
+  onSubmitVotes: () => void;
   remaining: Record<UpvoteKind, number>;
   onAllocate: (reviewId: string, kind: UpvoteKind, add: boolean) => void;
   onReport: (reviewId: string) => void;
@@ -749,17 +813,16 @@ function FilmSlide({
                   Everyone&apos;s watched it
                 </p>
                 <p className="mt-1 text-xs leading-relaxed text-ink-faint">
-                  Writing closes and voting opens right away — the rest of the
-                  festival&apos;s clock moves up by the same amount, so nothing
-                  runs late.
+                  Move on to reviews — the rest of the festival&apos;s clock
+                  moves up by the same amount, so nothing runs late.
                 </p>
                 <button
                   type="button"
-                  onClick={onAdvance}
+                  onClick={onAdvanceToReview}
                   disabled={pending}
                   className="mt-3 bg-signal px-6 py-3 text-sm font-medium uppercase tracking-[0.14em] text-paper transition-colors hover:bg-ink disabled:opacity-50"
                 >
-                  Move to reviews now
+                  Move onto reviews
                 </button>
               </div>
             )}
@@ -767,7 +830,7 @@ function FilmSlide({
         )}
 
         {isCurrent && (phase === "VIEWING" || phase === "REVIEWING") && (
-          <div className={phase === "VIEWING" ? "pt-6" : ""}>
+          <div className={phase === "VIEWING" ? "pt-6" : "border-b border-rule pb-6"}>
             <div className="flex flex-wrap items-baseline justify-between gap-3">
               <p className="text-sm font-medium uppercase tracking-tight">
                 Your review
@@ -802,6 +865,38 @@ function FilmSlide({
                 {saved ? "Filed ✓" : "File review"}
               </button>
             </div>
+
+            {phase === "REVIEWING" && (
+              <>
+                <p className="mt-4 text-xs uppercase tracking-[0.1em] text-ink-faint">
+                  {reviewedCount} / {totalMembers} of the guild has submitted a
+                  review
+                </p>
+
+                {isPresident &&
+                  totalMembers > 0 &&
+                  reviewedCount >= totalMembers && (
+                    <div className="mt-4 border border-ink bg-paper px-5 py-4">
+                      <p className="text-sm font-medium uppercase tracking-tight text-signal">
+                        Everyone&apos;s reviewed it
+                      </p>
+                      <p className="mt-1 text-xs leading-relaxed text-ink-faint">
+                        Move on to voting — the rest of the festival&apos;s
+                        clock moves up by the same amount, so nothing runs
+                        late.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={onAdvanceToVoting}
+                        disabled={pending}
+                        className="mt-3 bg-signal px-6 py-3 text-sm font-medium uppercase tracking-[0.14em] text-paper transition-colors hover:bg-ink disabled:opacity-50"
+                      >
+                        Move onto review voting
+                      </button>
+                    </div>
+                  )}
+              </>
+            )}
           </div>
         )}
 
@@ -843,7 +938,8 @@ function FilmSlide({
                       <AllocateControl
                         label="Insightful"
                         count={r.myInsightful}
-                        canAdd={!pending && remaining.insightful > 0}
+                        canAdd={!pending && !submitted && remaining.insightful > 0}
+                        locked={submitted}
                         onAdd={() => onAllocate(r.id, "insightful", true)}
                         onRemove={() =>
                           onAllocate(r.id, "insightful", false)
@@ -852,7 +948,8 @@ function FilmSlide({
                       <AllocateControl
                         label="Funniest"
                         count={r.myFunniest}
-                        canAdd={!pending && remaining.funniest > 0}
+                        canAdd={!pending && !submitted && remaining.funniest > 0}
+                        locked={submitted}
                         onAdd={() => onAllocate(r.id, "funniest", true)}
                         onRemove={() => onAllocate(r.id, "funniest", false)}
                       />
@@ -870,6 +967,48 @@ function FilmSlide({
                 </li>
               )}
             </ul>
+
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-4 border-t border-rule pt-5">
+              <p className="text-xs uppercase tracking-[0.1em] text-ink-faint">
+                {voteSubmittedCount} / {totalMembers} of the guild has
+                submitted their votes
+              </p>
+              <button
+                type="button"
+                onClick={onSubmitVotes}
+                disabled={pending || submitted}
+                className={`px-6 py-3 text-sm font-medium uppercase tracking-[0.14em] transition-colors disabled:opacity-50 ${
+                  submitted
+                    ? "border border-ink text-ink"
+                    : "bg-signal text-paper hover:bg-ink"
+                }`}
+              >
+                {submitted ? "Votes submitted ✓" : "Submit upvotes"}
+              </button>
+            </div>
+
+            {isPresident &&
+              totalMembers > 0 &&
+              voteSubmittedCount >= totalMembers && (
+                <div className="mt-4 border border-ink bg-paper px-5 py-4">
+                  <p className="text-sm font-medium uppercase tracking-tight text-signal">
+                    Everyone&apos;s voted
+                  </p>
+                  <p className="mt-1 text-xs leading-relaxed text-ink-faint">
+                    Close this film and open the next one — the rest of the
+                    festival&apos;s clock moves up by the same amount, so
+                    nothing runs late.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={onFinalizeVoting}
+                    disabled={pending}
+                    className="mt-3 bg-signal px-6 py-3 text-sm font-medium uppercase tracking-[0.14em] text-paper transition-colors hover:bg-ink disabled:opacity-50"
+                  >
+                    Finalize review voting
+                  </button>
+                </div>
+              )}
           </div>
         )}
 
@@ -972,12 +1111,15 @@ function AllocateControl({
   label,
   count,
   canAdd,
+  locked = false,
   onAdd,
   onRemove,
 }: {
   label: string;
   count: number;
   canAdd: boolean;
+  /** Once the member has submitted their votes, nothing here moves anymore. */
+  locked?: boolean;
   onAdd: () => void;
   onRemove: () => void;
 }) {
@@ -1004,8 +1146,9 @@ function AllocateControl({
         <button
           type="button"
           onClick={onRemove}
+          disabled={locked}
           aria-label={`Take back one ${label} upvote`}
-          className="border-l border-signal px-2 text-signal transition-colors hover:bg-signal hover:text-paper"
+          className="border-l border-signal px-2 text-signal transition-colors hover:bg-signal hover:text-paper disabled:pointer-events-none disabled:opacity-50"
         >
           −
         </button>
