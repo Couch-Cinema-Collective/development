@@ -3,21 +3,18 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import {
-  BEST_OF_THE_FEST,
-  MAX_CURATORS,
-  MIN_CURATORS,
-  REVIEW_MAX_CHARS,
-  UPVOTES_PER_FILM,
-  VOICE_OF_THE_PEOPLE,
-} from "@/lib/types";
+import { MAX_CURATORS, MIN_CURATORS, VOICE_OF_THE_PEOPLE } from "@/lib/types";
 
-/** The festival arc, as a pitch. Four beats — the machinery is implied. */
+/** The festival arc, as a pitch. Five beats — the machinery is implied. */
 const ARC = [
-  { label: "Programme", note: "Every curator puts up one film" },
-  { label: "Screen", note: "One film at a time, on the festival clock" },
-  { label: "Review", note: `${REVIEW_MAX_CHARS} characters, anonymous` },
-  { label: "Award", note: "The ceremony settles who had the taste" },
+  { label: "Nominate", note: "Everyone in the guild nominates a film for the festival" },
+  { label: "Programme", note: "Nominated films are voted into the festival" },
+  { label: "Screen", note: "Watch one film, once a week" },
+  { label: "Review", note: "Write an anonymous review" },
+  {
+    label: "Award",
+    note: `Best Film and ${VOICE_OF_THE_PEOPLE} take home the awards`,
+  },
 ];
 
 export default async function LandingPage() {
@@ -68,9 +65,11 @@ export default async function LandingPage() {
       </section>
 
       <section className="mx-auto max-w-7xl px-6 py-16">
-        <h2 className="label-eyebrow">How a festival runs</h2>
+        <h2 className="text-center text-4xl font-medium uppercase tracking-tight sm:text-5xl">
+          How it works
+        </h2>
 
-        <ol className="mt-6 grid gap-px border border-rule bg-rule sm:grid-cols-4">
+        <ol className="mt-6 grid gap-px border border-rule bg-rule sm:grid-cols-2 lg:grid-cols-5">
           {ARC.map((step, index) => (
             <li key={step.label} className="bg-paper-raised px-6 py-8">
               <span className="label-eyebrow">
@@ -94,10 +93,11 @@ export default async function LandingPage() {
               You back a film
             </p>
             <p className="mt-4 text-sm leading-relaxed text-ink-soft">
-              A guild seats {MIN_CURATORS}–{MAX_CURATORS} curators, and each one
-              puts a single film into the festival. Think producer, not critic:
-              you stake your name on a pick, and if it takes {BEST_OF_THE_FEST},
-              the win goes on your record.
+              Each festival nominates {MIN_CURATORS}–{MAX_CURATORS} films. If
+              your film was nominated, you are a curator! Think producer —
+              placing your bet that this film will win it all. Anonymously
+              campaign for your film, bring home the Best Film award and win
+              the festival!
             </p>
           </div>
           <div className="bg-paper-raised px-8 py-10">
@@ -106,10 +106,11 @@ export default async function LandingPage() {
               You decide it
             </p>
             <p className="mt-4 text-sm leading-relaxed text-ink-soft">
-              Critics are the voting body — up to fifty of them. Watch each
-              film, write {REVIEW_MAX_CHARS} characters on it, and spend{" "}
-              {UPVOTES_PER_FILM} upvotes on the reviews that earned them. The
-              sharpest writer takes {VOICE_OF_THE_PEOPLE}.
+              Critics are the voting body — the ones who decide the festival
+              winner! Watch each film, write a review, and win points for
+              having the funniest or most insightful critiques. The sharpest
+              reviewer takes {VOICE_OF_THE_PEOPLE} — awarding the best critic
+              of the festival!
             </p>
           </div>
         </div>
@@ -123,22 +124,22 @@ export default async function LandingPage() {
           <div className="bg-paper-raised px-6 py-8">
             <p className="label-eyebrow">The rhythm</p>
             <p className="mt-3 text-sm leading-relaxed text-ink-soft">
-              A fortnight to watch, two days to write, twenty-four hours to
-              vote. Then the next film opens. Miss a window and you miss it.
+              A week to watch, two days to review, twenty-four hours to vote.
+              Miss a window, and forfeit your chances to win it all.
             </p>
           </div>
           <div className="bg-paper-raised px-6 py-8">
-            <p className="label-eyebrow">The rule</p>
+            <p className="label-eyebrow">The reviews</p>
             <p className="mt-3 text-sm leading-relaxed text-ink-soft">
-              Reviews are anonymous until voting shuts, so people upvote the
-              writing rather than the writer.
+              Curators and critics of each film are anonymous. Winners are
+              based off taste, not popularity.
             </p>
           </div>
           <div className="bg-paper-raised px-6 py-8">
-            <p className="label-eyebrow">The record</p>
+            <p className="label-eyebrow">The awards</p>
             <p className="mt-3 text-sm leading-relaxed text-ink-soft">
-              {BEST_OF_THE_FEST} is the only award that scores. The rest are
-              real trophies that count for nothing — which is the fun of them.
+              Each festival gives out two top awards — “Best Film” and “{VOICE_OF_THE_PEOPLE}.” May
+              the best win the fest!
             </p>
           </div>
         </div>
