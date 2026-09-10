@@ -38,6 +38,39 @@ export async function reportReview(reviewId: string): Promise<ActionResult> {
   return { ok: true };
 }
 
+/**
+ * The president's early-close: when everyone has watched, end this film's
+ * viewing window now and carry the time saved into every film still ahead,
+ * rather than waiting out the clock. advance_screening() re-checks the
+ * watch count and the president role itself — this only translates a
+ * rejection into something readable.
+ */
+export async function advanceScreening(
+  festivalId: string,
+  tmdbId: number,
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Sign in first." };
+
+  const { error } = await supabase.rpc("advance_screening", {
+    fid: festivalId,
+    tid: tmdbId,
+  });
+  if (error) {
+    return {
+      error: error.message.includes("watched")
+        ? "Not everyone has watched this one yet."
+        : "Couldn't move this film forward.",
+    };
+  }
+
+  revalidatePath("/dashboard");
+  return { ok: true };
+}
+
 /** Mark a film watched, or take the mark back. */
 export async function setWatched(
   festivalId: string,

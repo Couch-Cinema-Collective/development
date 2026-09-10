@@ -17,7 +17,7 @@ export const CURRENT_MEMBER_ID = "m-jack";
 /**
  * A guild mid-festival: six curators (the president included) and a couple of
  * critics who vote without programming. Award credits belong to whoever
- * nominated the winning film, and only Best of the Fest scores.
+ * nominated the winning film, and only Best Film scores.
  */
 export const MEMBERS: Member[] = [
   {
@@ -28,7 +28,7 @@ export const MEMBERS: Member[] = [
     awards: [
       {
         awardId: "best-of-the-fest",
-        awardName: "Best of the Fest",
+        awardName: "Best Film",
         filmTitle: "Stalker",
         festivalNumber: 2,
         scoring: true,

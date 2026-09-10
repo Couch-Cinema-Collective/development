@@ -121,27 +121,46 @@ export default async function DashboardPage({
   // those too is harmless.
   const withThreads = lineup.filter((f) => phaseOf(f) !== "UPCOMING");
 
-  const [{ data: budgetRows }, { data: pitch }, threadResults] =
-    await Promise.all([
-      current
-        ? supabase.rpc("my_upvote_budgets", {
-            fid: festival.id,
-            tid: current.film.id,
-          })
-        : Promise.resolve({ data: [] }),
-      current
-        ? supabase.rpc("film_pitch", { fid: festival.id, tid: current.film.id })
-        : Promise.resolve({ data: null }),
-      Promise.all(
-        withThreads.map(async (f) => {
-          const { data } = await supabase.rpc("film_reviews_v2", {
-            fid: festival.id,
-            tid: f.film.id,
-          });
-          return { tmdbId: f.film.id, rows: (data ?? []) as ReviewRow[] };
-        }),
-      ),
-    ]);
+  const [
+    { data: budgetRows },
+    { data: pitch },
+    threadResults,
+    { count: watchedCount },
+    { count: totalMembers },
+  ] = await Promise.all([
+    current
+      ? supabase.rpc("my_upvote_budgets", {
+          fid: festival.id,
+          tid: current.film.id,
+        })
+      : Promise.resolve({ data: [] }),
+    current
+      ? supabase.rpc("film_pitch", { fid: festival.id, tid: current.film.id })
+      : Promise.resolve({ data: null }),
+    Promise.all(
+      withThreads.map(async (f) => {
+        const { data } = await supabase.rpc("film_reviews_v2", {
+          fid: festival.id,
+          tid: f.film.id,
+        });
+        return { tmdbId: f.film.id, rows: (data ?? []) as ReviewRow[] };
+      }),
+    ),
+    // Who's watched the film that's on — the guild-wide count, not just this
+    // member's own mark. RLS explicitly allows reading the whole guild's
+    // watch progress, not only your own row.
+    current
+      ? supabase
+          .from("watch_records")
+          .select("*", { count: "exact", head: true })
+          .eq("festival_id", festival.id)
+          .eq("tmdb_id", current.film.id)
+      : Promise.resolve({ count: 0 }),
+    supabase
+      .from("guild_members")
+      .select("*", { count: "exact", head: true })
+      .eq("guild_id", festival.guildId),
+  ]);
 
   const spentByKind = new Map(
     ((budgetRows ?? []) as { kind: string; spent: number }[]).map((b) => [
@@ -307,6 +326,9 @@ export default async function DashboardPage({
           reviewsFiled={(myReviews ?? []).length}
           festivalAwards={(wins ?? []).length}
           isCurator={isCurator(role)}
+          isPresident={role === "president"}
+          watchedCount={watchedCount ?? 0}
+          totalMembers={totalMembers ?? 0}
           drawnButNotOpen={drawnButNotOpen}
         />
       </div>

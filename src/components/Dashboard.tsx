@@ -7,6 +7,7 @@ import { Countdown } from "./Countdown";
 import { FilmPoster } from "./FilmPoster";
 import { syncFestivalClock, tapHaptic } from "@/lib/native";
 import {
+  advanceScreening,
   allocateUpvote,
   reportReview,
   saveReview,
@@ -67,6 +68,12 @@ export interface DashboardProps {
   festivalAwards: number;
   /** Curators have a film in the lineup; critics do not. */
   isCurator: boolean;
+  /** Only the president can skip ahead once everyone's watched. */
+  isPresident: boolean;
+  /** How many guild members have marked the current film watched. */
+  watchedCount: number;
+  /** The guild's full roster size — the denominator for watchedCount. */
+  totalMembers: number;
   /**
    * The lineup is drawn but carries no schedule yet — the president has not
    * opened the festival. Distinct from an empty lineup, and from one that has
@@ -96,6 +103,9 @@ export function Dashboard({
   reviewsFiled,
   festivalAwards,
   isCurator,
+  isPresident,
+  watchedCount,
+  totalMembers,
   drawnButNotOpen,
 }: DashboardProps) {
   const [watched, setWatchedState] = useState(new Set(watchedIds));
@@ -277,6 +287,16 @@ export function Dashboard({
     });
   }
 
+  /** The president skips ahead once everyone's watched — no more waiting. */
+  function onAdvance() {
+    if (!current) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await advanceScreening(festivalId, current.film.id);
+      if (result.error) setError(result.error);
+    });
+  }
+
   return (
     <div className="grid gap-10 lg:grid-cols-[1fr_300px]">
       <div className="min-w-0 space-y-8">
@@ -337,6 +357,10 @@ export function Dashboard({
                   saved={saved}
                   pending={pending}
                   onWatch={onWatch}
+                  isPresident={isPresident}
+                  watchedCount={watchedCount}
+                  totalMembers={totalMembers}
+                  onAdvance={onAdvance}
                   remaining={remaining}
                   onAllocate={onAllocate}
                   onReport={onReport}
@@ -580,6 +604,10 @@ function FilmSlide({
   saved,
   pending,
   onWatch,
+  isPresident,
+  watchedCount,
+  totalMembers,
+  onAdvance,
   remaining,
   onAllocate,
   onReport,
@@ -603,6 +631,10 @@ function FilmSlide({
   saved: boolean;
   pending: boolean;
   onWatch: (next: boolean) => void;
+  isPresident: boolean;
+  watchedCount: number;
+  totalMembers: number;
+  onAdvance: () => void;
   remaining: Record<UpvoteKind, number>;
   onAllocate: (reviewId: string, kind: UpvoteKind, add: boolean) => void;
   onReport: (reviewId: string) => void;
@@ -682,28 +714,55 @@ function FilmSlide({
       {/* The single action this phase asks for. */}
       <div className="border-t border-rule px-6 py-6">
         {isCurrent && phase === "VIEWING" && (
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-rule pb-6">
-            <div>
-              <p className="text-sm font-medium uppercase tracking-tight">
-                {isWatched ? "Watched" : "Watch it before Sunday midnight"}
-              </p>
-              <p className="mt-1 text-xs text-ink-faint">
-                Write it up any time before the window shuts — voting on
-                reviews opens Monday.
-              </p>
+          <div className="border-b border-rule pb-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium uppercase tracking-tight">
+                  {isWatched ? "Watched" : "Watch it before Sunday midnight"}
+                </p>
+                <p className="mt-1 text-xs text-ink-faint">
+                  Write it up any time before the window shuts — voting on
+                  reviews opens Monday.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onWatch(!isWatched)}
+                disabled={pending}
+                className={`px-7 py-3.5 text-sm font-medium uppercase tracking-[0.14em] transition-colors disabled:opacity-50 ${
+                  isWatched
+                    ? "border border-ink text-ink hover:bg-ink hover:text-paper"
+                    : "bg-signal text-paper hover:bg-ink"
+                }`}
+              >
+                {isWatched ? "Watched ✓" : "Mark watched"}
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => onWatch(!isWatched)}
-              disabled={pending}
-              className={`px-7 py-3.5 text-sm font-medium uppercase tracking-[0.14em] transition-colors disabled:opacity-50 ${
-                isWatched
-                  ? "border border-ink text-ink hover:bg-ink hover:text-paper"
-                  : "bg-signal text-paper hover:bg-ink"
-              }`}
-            >
-              {isWatched ? "Watched ✓" : "Mark watched"}
-            </button>
+
+            <p className="mt-4 text-xs uppercase tracking-[0.1em] text-ink-faint">
+              {watchedCount} / {totalMembers} of the guild has watched this one
+            </p>
+
+            {isPresident && totalMembers > 0 && watchedCount >= totalMembers && (
+              <div className="mt-4 border border-ink bg-paper px-5 py-4">
+                <p className="text-sm font-medium uppercase tracking-tight text-signal">
+                  Everyone&apos;s watched it
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-ink-faint">
+                  Writing closes and voting opens right away — the rest of the
+                  festival&apos;s clock moves up by the same amount, so nothing
+                  runs late.
+                </p>
+                <button
+                  type="button"
+                  onClick={onAdvance}
+                  disabled={pending}
+                  className="mt-3 bg-signal px-6 py-3 text-sm font-medium uppercase tracking-[0.14em] text-paper transition-colors hover:bg-ink disabled:opacity-50"
+                >
+                  Move to reviews now
+                </button>
+              </div>
+            )}
           </div>
         )}
 

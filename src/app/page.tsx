@@ -3,7 +3,12 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { MAX_CURATORS, MIN_CURATORS, VOICE_OF_THE_PEOPLE } from "@/lib/types";
+import {
+  BEST_OF_THE_FEST,
+  MAX_CURATORS,
+  MIN_CURATORS,
+  VOICE_OF_THE_PEOPLE,
+} from "@/lib/types";
 
 /** The festival arc, as a pitch. Five beats — the machinery is implied. */
 const ARC = [
@@ -13,7 +18,7 @@ const ARC = [
   { label: "Review", note: "Write an anonymous review" },
   {
     label: "Award",
-    note: `Best Film and ${VOICE_OF_THE_PEOPLE} take home the awards`,
+    note: `${BEST_OF_THE_FEST} and ${VOICE_OF_THE_PEOPLE} take home the awards`,
   },
 ];
 
@@ -96,8 +101,8 @@ export default async function LandingPage() {
               Each festival nominates {MIN_CURATORS}–{MAX_CURATORS} films. If
               your film was nominated, you are a curator! Think producer —
               placing your bet that this film will win it all. Anonymously
-              campaign for your film, bring home the Best Film award and win
-              the festival!
+              campaign for your film, bring home the {BEST_OF_THE_FEST} award
+              and win the festival!
             </p>
           </div>
           <div className="bg-paper-raised px-8 py-10">
@@ -138,8 +143,8 @@ export default async function LandingPage() {
           <div className="bg-paper-raised px-6 py-8">
             <p className="label-eyebrow">The awards</p>
             <p className="mt-3 text-sm leading-relaxed text-ink-soft">
-              Each festival gives out two top awards — “Best Film” and “{VOICE_OF_THE_PEOPLE}.” May
-              the best win the fest!
+              Each festival gives out two top awards — “{BEST_OF_THE_FEST}” and
+              “{VOICE_OF_THE_PEOPLE}.” May the best win the fest!
             </p>
           </div>
         </div>

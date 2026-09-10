@@ -244,7 +244,7 @@ async function build() {
   if (festivalError) throw festivalError;
 
   await db.from("festival_awards").insert([
-    { festival_id: festival.id, award_id: "best-of-the-fest", name: "Best of the Fest", tier: "picture", scoring: true },
+    { festival_id: festival.id, award_id: "best-of-the-fest", name: "Best Film", tier: "picture", scoring: true },
     { festival_id: festival.id, award_id: "director", name: "Best Director", tier: "direction", scoring: false },
     { festival_id: festival.id, award_id: "score", name: "Best Score", tier: "craft", scoring: false },
   ]);
