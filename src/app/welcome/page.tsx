@@ -79,7 +79,7 @@ export default async function WelcomePage() {
             {active.map((m) => (
               <li key={m.guildId} className="bg-paper-raised">
                 <Link
-                  href={`/guild/${m.guildId}`}
+                  href={`/dashboard?guild=${m.guildId}`}
                   className="flex items-baseline justify-between gap-6 px-6 py-5 transition-colors hover:bg-paper"
                 >
                   <span className="text-xl font-medium uppercase tracking-tight">
