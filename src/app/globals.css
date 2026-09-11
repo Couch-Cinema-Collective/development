@@ -93,25 +93,28 @@ body {
 }
 
 /*
- * The couch-eye motif behind full-bleed sections. The source art is one
- * 8000px composition, not a seamless tile — tiling it produced cut-off
- * couches and a visible seam, so it renders as a single cover image.
+ * The couch-eye motif behind full-bleed sections. `cover` scaled this to
+ * each section's own aspect ratio, so the same pattern looked tightly
+ * zoomed on a short hero band and wildly zoomed on a tall full-page
+ * background — the welcome page and the landing page never matched. Sizing
+ * by width alone keeps the icon scale identical everywhere the class is
+ * used; repeat-y fills anything taller than one image-width tall.
  */
 @utility pattern-signal {
   background-color: var(--color-signal);
   background-image: url("/brand/Cinema_Style_red pat.png");
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  background-size: 100% auto;
+  background-position: top center;
+  background-repeat: repeat-y;
 }
 
 /* Dark-red variant — commissioner (guild president) screens and member profiles. */
 @utility pattern-signal-dark {
   background-color: var(--color-signal-dark);
   background-image: url("/brand/Cinema_Style_dark red pat.png");
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  background-size: 100% auto;
+  background-position: top center;
+  background-repeat: repeat-y;
 }
 
 /*
