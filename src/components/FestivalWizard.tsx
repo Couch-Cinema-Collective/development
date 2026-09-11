@@ -286,9 +286,9 @@ export function FestivalWizard({
               The schedule
             </h2>
             <p className="mt-3 max-w-lg text-sm leading-relaxed text-ink-soft">
-              Every festival runs the same rhythm, anchored to Pacific time, so
-              the guild always knows what is due and when. You choose when it
-              starts; the calendar does the rest.
+              Every festival runs the same rhythm — one week per film, every
+              film, no exceptions. You choose when it starts; the clock does
+              the rest.
             </p>
 
             <ol className="mt-8 grid gap-px border border-rule bg-rule">
@@ -296,22 +296,22 @@ export function FestivalWizard({
                 {
                   label: "The first film",
                   when: "Opens the moment you open the festival",
-                  note: "Screens until midnight at the end of the second Sunday.",
+                  note: "Runs the same seven-day cycle as every film after it.",
                 },
                 {
                   label: "Watch and write",
-                  when: "Two full weekends",
+                  when: "Five days",
                   note: `Reviews are filed during the viewing window — ${REVIEW_MAX_CHARS} characters, and they close when voting opens.`,
                 },
                 {
                   label: "Critics vote",
-                  when: "Monday to Wednesday",
-                  note: `Reviews go up anonymously and every critic spends ${UPVOTES_PER_FILM} upvotes. Closes Wednesday midnight.`,
+                  when: "Two days",
+                  note: `Reviews go up anonymously and every critic spends ${UPVOTES_PER_FILM} upvotes.`,
                 },
                 {
                   label: "The next film",
-                  when: "Thursday morning",
-                  note: "Ten days to the following Sunday, then Monday to Wednesday again — a fortnight per film, every film.",
+                  when: "Opens immediately",
+                  note: "One week per film, every film — the next one opens the instant this one closes.",
                 },
               ].map((row) => (
                 <li key={row.label} className="bg-paper-raised px-6 py-5">

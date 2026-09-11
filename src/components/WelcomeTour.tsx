@@ -40,11 +40,11 @@ function slidesFor(role: GuildRole): Slide[] {
     {
       eyebrow: "The rhythm",
       title: "Watch, write, vote",
-      body: "Every film runs the same fortnight, on the same calendar. Miss a window and you miss that round — that is the whole eligibility system.",
+      body: "Every film runs the same seven days. Miss a window and you miss that round — that is the whole eligibility system.",
       points: [
-        "Watch it and write it up by Sunday midnight",
+        "Watch it and write it up before the window shuts",
         `${REVIEW_MAX_CHARS} characters, filed while the film is still screening`,
-        `Monday to Wednesday, spend ${UPVOTES_PER_FILM} upvotes on other people's reviews`,
+        `Once voting opens, spend ${UPVOTES_PER_FILM} upvotes on other people's reviews`,
       ],
     },
     {

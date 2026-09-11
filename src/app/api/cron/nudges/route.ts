@@ -85,14 +85,14 @@ export async function GET(request: Request) {
         );
         const reviewed = new Set((reviewRows ?? []).map((r) => r.user_id));
 
-        // Sunday looms: not watched yet.
+        // The window nears: not watched yet.
         if (now < lockAt && lockAt - now < 60 * HOUR) {
           nudges.push({
             festivalId: festival.id,
             tmdbId: f.tmdb_id,
             kind: "watch",
             userIds: everyone.filter((u) => !watchedInTime.has(u)),
-            title: "Reviews lock Sunday midnight",
+            title: "The window's closing soon",
             body: `${title} isn't marked watched. Miss it and you can't win this festival.`,
             path: "/dashboard",
           });
@@ -105,7 +105,7 @@ export async function GET(request: Request) {
               (u) => watchedInTime.has(u) && !reviewed.has(u),
             ),
             title: "Your review isn't in",
-            body: `You watched ${title} and wrote nothing? 200 characters. Sunday midnight.`,
+            body: `You watched ${title} and wrote nothing? 200 characters, before the window shuts.`,
             path: "/dashboard",
           });
         }

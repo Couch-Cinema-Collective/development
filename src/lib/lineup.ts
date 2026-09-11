@@ -96,15 +96,13 @@ export function nextFilm(
 /**
  * The fixed cycle, in days.
  *
- * Every film after the first opens Thursday 00:00 Pacific, screens until
- * midnight the Sunday ten days later, then gets Monday to Wednesday for
- * critics to vote on its reviews — an exact fortnight, week-aligned. The
- * first film is ragged: it starts whenever the president opens the festival
- * and runs to the second Sunday, so it can be anything from 11 to 17 days.
+ * Every film — including the first — runs five days to watch and write,
+ * then two days for critics to vote: seven days, always, from the moment
+ * it opens. The next film opens the instant the previous one closes.
  *
- * Mirrors open_festival() in schema-10-calendar-schedule.sql.
+ * Mirrors open_festival() in schema-21-uniform-weekly-cycle.sql.
  */
-export const CYCLE_DAYS = 14;
+export const CYCLE_DAYS = 7;
 
 /** How long a whole festival runs, given the lineup size. */
 export function festivalDays(filmCount: number): number {

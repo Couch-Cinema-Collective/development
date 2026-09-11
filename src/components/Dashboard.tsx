@@ -570,8 +570,8 @@ export function Dashboard({
               ))}
             </ol>
             <p className="mt-4 text-xs leading-relaxed text-ink-faint">
-              Updates Wednesdays as each film&apos;s votes are revealed.
-              Insightful and Funniest both score one point.
+              Updates as each film&apos;s votes are revealed. Insightful and
+              Funniest both score one point.
             </p>
           </section>
         )}
@@ -624,7 +624,7 @@ export function Dashboard({
 /** What the clock is counting down to, in the member's terms. */
 const DEADLINE_LABEL: Record<ScreeningPhase, string> = {
   UPCOMING: "Opens in",
-  // Watching and writing share one window, closing Sunday midnight Pacific.
+  // Watching and writing share one window — five days, then voting opens.
   VIEWING: "Watch and review within",
   REVIEWING: "Review it within",
   CRITICS_VOTING: "Vote within",
@@ -782,11 +782,11 @@ function FilmSlide({
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <p className="text-sm font-medium uppercase tracking-tight">
-                  {isWatched ? "Watched" : "Watch it before Sunday midnight"}
+                  {isWatched ? "Watched" : "Watch it before the window shuts"}
                 </p>
                 <p className="mt-1 text-xs text-ink-faint">
                   Write it up any time before the window shuts — voting on
-                  reviews opens Monday.
+                  reviews opens right after.
                 </p>
               </div>
               <button
@@ -854,7 +854,7 @@ function FilmSlide({
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
               <p className="text-xs text-ink-faint">
                 Anonymous until the voting window shuts. Editable until
-                voting opens Monday.
+                voting opens.
               </p>
               <button
                 type="button"
@@ -1105,7 +1105,7 @@ function ReportButton({
 /**
  * One vote type on one review: tap the label to spend a vote (stacking is
  * allowed), tap the count to take one back. Counts show YOUR allocation —
- * totals stay sealed until the Wednesday reveal.
+ * totals stay sealed until the film closes and the reveal happens.
  */
 function AllocateControl({
   label,
